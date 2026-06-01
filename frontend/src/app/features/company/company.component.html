@@ -1,0 +1,155 @@
+<div class="dashboard-container">
+  <h1><i class="fa-solid fa-building"></i> Espace Entreprise</h1>
+
+  <div class="section-tabs">
+    <button [class.active]="activeSection === 'parking'" (click)="activeSection = 'parking'">
+      <i class="fa-solid fa-square-parking"></i> Intégrer un Parking
+    </button>
+    <button [class.active]="activeSection === 'employees'" (click)="activeSection = 'employees'">
+      <i class="fa-solid fa-users"></i> Employés ({{ employees.length }})
+    </button>
+    <button [class.active]="activeSection === 'profile'" (click)="activeSection = 'profile'">
+      <i class="fa-solid fa-user-gear"></i> Profil
+    </button>
+  </div>
+
+  <!-- Parking Request -->
+  <div *ngIf="activeSection === 'parking'" class="glass-card" style="margin-top: 1.5rem; max-width: 600px;">
+    <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-plus-circle" style="color: var(--primary); margin-right: 0.5rem;"></i> Soumettre une demande d'intégration de parking</h3>
+    <form (submit)="onSubmitParking($event)">
+      <div class="form-group">
+        <label>Nom du parking</label>
+        <input type="text" class="form-control" [(ngModel)]="parkingName" name="parkingName" placeholder="Parking Centre-Ville" required>
+      </div>
+      <div class="form-group">
+        <label>Adresse</label>
+        <input type="text" class="form-control" [(ngModel)]="parkingAddress" name="parkingAddress" placeholder="10 Rue du Port" required>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label>Ville</label>
+          <input type="text" class="form-control" [(ngModel)]="parkingCity" name="parkingCity" placeholder="Lyon" required>
+        </div>
+        <div class="form-group">
+          <label>Code postal</label>
+          <input type="text" class="form-control" [(ngModel)]="parkingZip" name="parkingZip" placeholder="69001" required>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label>Nombre de places</label>
+          <input type="number" class="form-control" [(ngModel)]="parkingSpots" name="parkingSpots" placeholder="50" min="1" required>
+        </div>
+        <div class="form-group">
+          <label>Prix par heure (€)</label>
+          <input type="number" class="form-control" [(ngModel)]="parkingPrice" name="parkingPrice" placeholder="2.50" step="0.01" min="0" required>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" [disabled]="isLoading">
+        <i class="fa-solid fa-paper-plane"></i>
+        <span>{{ isLoading ? 'Envoi...' : 'Soumettre la demande' }}</span>
+      </button>
+    </form>
+  </div>
+
+  <!-- Employees -->
+  <div *ngIf="activeSection === 'employees'" style="margin-top: 1.5rem;">
+    <div class="glass-card" style="max-width: 600px; margin-bottom: 2rem;">
+      <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-user-plus" style="color: var(--accent); margin-right: 0.5rem;"></i> Créer un Employé</h3>
+      <form (submit)="onCreateEmployee($event)">
+        <div class="form-group">
+          <label>Nom complet</label>
+          <input type="text" class="form-control" [(ngModel)]="empName" name="empName" placeholder="Marc Lemaire" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" class="form-control" [(ngModel)]="empEmail" name="empEmail" placeholder="marc@entreprise.com" required>
+        </div>
+        <div class="form-group">
+          <label>Mot de passe</label>
+          <input type="password" class="form-control" [(ngModel)]="empPassword" name="empPassword" placeholder="••••••••" required>
+        </div>
+        <div class="form-group">
+          <label>Téléphone</label>
+          <input type="text" class="form-control" [(ngModel)]="empPhone" name="empPhone" placeholder="0789012345" required>
+        </div>
+        <div class="form-group">
+          <label>ID du Parking (approuvé)</label>
+          <input type="text" class="form-control" [(ngModel)]="empParkingId" name="empParkingId" placeholder="ID MongoDB du parking approuvé" required>
+        </div>
+        <div class="form-group">
+          <label>Position</label>
+          <select class="form-control" [(ngModel)]="empPosition" name="empPosition">
+            <option value="agent">Agent</option>
+            <option value="supervisor">Superviseur</option>
+            <option value="manager">Manager</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" [disabled]="isLoading">
+          <i class="fa-solid fa-user-plus"></i>
+          <span>{{ isLoading ? 'Création...' : 'Créer l\'employé' }}</span>
+        </button>
+      </form>
+    </div>
+
+    <div class="glass-card" style="padding: 0;" *ngIf="employees.length > 0">
+      <div class="custom-table-container">
+        <table class="custom-table">
+          <thead>
+            <tr><th>Nom</th><th>Email</th><th>Position</th><th>N° Employé</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let e of employees">
+              <td>{{ e.name }}</td>
+              <td>{{ e.email }}</td>
+              <td>{{ e.position }}</td>
+              <td>{{ e.employeeNumber }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="empty-state glass-card" *ngIf="employees.length === 0">
+      <i class="fa-solid fa-users-slash"></i>
+      <p>Aucun employé créé pour le moment.</p>
+    </div>
+  </div>
+
+  <!-- Profile -->
+  <div *ngIf="activeSection === 'profile' && profile" class="glass-card" style="margin-top: 1.5rem; max-width: 500px;">
+    <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-user-gear" style="color: var(--secondary); margin-right: 0.5rem;"></i> Mon Profil Entreprise</h3>
+    <form (submit)="onUpdateProfile($event)">
+      <div class="form-group">
+        <label>Nom de l'entreprise</label>
+        <input type="text" class="form-control" [(ngModel)]="profile.name" name="pName">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" class="form-control" [value]="profile.email" disabled>
+      </div>
+      <div class="form-group">
+        <label>Téléphone</label>
+        <input type="text" class="form-control" [(ngModel)]="profile.phone" name="pPhone">
+      </div>
+      <div class="form-group">
+        <label>SIRET</label>
+        <input type="text" class="form-control" [value]="profile.siret" disabled>
+      </div>
+      <div class="form-group">
+        <label>Statut du compte</label>
+        <span class="badge" [ngClass]="'badge-' + profile.status">{{ profile.status }}</span>
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <i class="fa-solid fa-floppy-disk"></i> Sauvegarder
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" *ngIf="toastMessage">
+  <div class="toast" [ngClass]="'toast-' + toastType">
+    <i class="fa-solid" [ngClass]="toastType === 'success' ? 'fa-circle-check' : 'fa-circle-xmark'"></i>
+    <span>{{ toastMessage }}</span>
+  </div>
+</div>

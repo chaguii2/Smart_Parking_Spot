@@ -1,0 +1,15 @@
+<header class="app-header" *ngIf="authService.isLoggedIn()">
+  <div class="header-inner">
+    <div class="header-brand">
+      <i class="fa-solid fa-square-parking"></i>
+      <span class="text-gradient-primary">Smart Parking</span>
+    </div>
+    <div class="header-right">
+      <span class="role-badge">{{ getRoleBadge() }}</span>
+      <span class="user-name">{{ authService.currentUserValue?.name }}</span>
+      <button class="btn-logout" (click)="logout()">
+        <i class="fa-solid fa-right-from-bracket"></i> Déconnexion
+      </button>
+    </div>
+  </div>
+</header>
