@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@mistralai/mistralai": "^2.2.5",
     "axios": "^1.16.1",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
@@ -27,7 +28,8 @@
     "mongoose": "^6.13.9",
     "morgan": "^1.10.1",
     "pdfkit": "^0.18.0",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
