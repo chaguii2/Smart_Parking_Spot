@@ -192,12 +192,19 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash du mot de passe et génération du numéro d'employé avant sauvegarde
-userSchema.pre('save', async function(next) {
+userSchema.pre('validate', async function(next) {
   if (this.role === UserRoles.EMPLOYEE && !this.employeeNumber) {
-    const count = await mongoose.model('User').countDocuments({ role: UserRoles.EMPLOYEE });
-    this.employeeNumber = `EMP-${String(count + 1).padStart(4, '0')}`;
+    try {
+      const count = await mongoose.model('User').countDocuments({ role: UserRoles.EMPLOYEE });
+      this.employeeNumber = `EMP-${String(count + 1).padStart(4, '0')}`;
+    } catch (err) {
+      return next(err);
+    }
   }
+  next();
+});
 
+userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();

@@ -258,6 +258,11 @@ class UserService {
 
     return parking;
   }
+
+  async getCompanyParkings(currentUser) {
+    this._requireRoles(currentUser, UserRoles.COMPANY);
+    return await Parking.find({ companyId: currentUser.id, isDeleted: { $ne: true } });
+  }
 }
 
 module.exports = new UserService();

@@ -22,6 +22,7 @@ router.post('/employees', authorize('company', 'super_admin'), [
 ], userController.createEmployee);
 
 router.get('/employees', authorize('company', 'super_admin'), userController.getCompanyEmployees);
+router.get('/company/parkings', authorize('company'), userController.getCompanyParkings);
 
 router.post('/parking-request', authorize('company'), [
   body('name').trim().notEmpty().withMessage('Le nom du parking est requis.'),

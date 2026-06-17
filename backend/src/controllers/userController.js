@@ -116,3 +116,12 @@ exports.submitParkingRequest = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getCompanyParkings = async (req, res, next) => {
+  try {
+    const parkings = await userService.getCompanyParkings(req.user);
+    res.json({ parkings });
+  } catch (error) {
+    next(error);
+  }
+};

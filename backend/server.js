@@ -39,12 +39,16 @@ const adminRoutes   = require('./src/routes/admin');
 // Nouvelles routes intégrées
 const iaRoutes      = require('./src/routes/ia');
 const parkingRoutes = require('./src/routes/parking');
+const subscriptionRoutes = require('./src/routes/subscription');
+const reservationRoutes = require('./src/routes/reservation');
 
-app.use('/api/auth',    authRoutes);
-app.use('/api/users',   userRoutes);
-app.use('/api/admin',   adminRoutes);
-app.use('/api/ia',      iaRoutes);
-app.use('/api/parking', parkingRoutes);
+app.use('/api/auth',         authRoutes);
+app.use('/api/users',        userRoutes);
+app.use('/api/admin',        adminRoutes);
+app.use('/api/ia',           iaRoutes);
+app.use('/api/parking',      parkingRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/reservations', reservationRoutes);
 
 // ==================== MOCK EMAILS ====================
 const MockEmail = require('./src/models/MockEmail');
@@ -100,6 +104,8 @@ server.listen(PORT, () => {
   console.log(` 🏥 IA Health:  GET  http://localhost:${PORT}/api/ia/health`);
   console.log(` 🗺️  Carte:      GET  http://localhost:${PORT}/api/parking/map/parkings`);
   console.log(` 🅿️  Places:     GET  http://localhost:${PORT}/api/parking/:id/spots`);
+  console.log(` 📋 Réservations: POST http://localhost:${PORT}/api/reservations`);
+  console.log(` 📋 Mes réservs: GET  http://localhost:${PORT}/api/reservations/my`);
   console.log(`========================================\n`);
 });
 
@@ -107,5 +113,22 @@ server.listen(PORT, () => {
 require('./src/models/User');
 require('./src/models/Parking');
 require('./src/models/ParkingSpot');
+require('./src/models/SubscriptionPlan');
+require('./src/models/Subscription');
+require('./src/models/Reservation');
 
-console.log('✅ Modèles Utilisateur, Parking et ParkingSpot chargés');
+console.log('✅ Modèles Utilisateur, Parking, ParkingSpot et Reservation chargés');
+
+// ==================== JOB AUTO-EXPIRATION DES RÉSERVATIONS ====================
+// Vérifie toutes les 5 minutes les réservations "pending" expirées
+const reservationService = require('./src/services/ReservationService');
+setInterval(async () => {
+  try {
+    const count = await reservationService._expirePendingReservations();
+    if (count > 0) {
+      console.log(`⏰ Auto-expiration : ${count} réservation(s) expirée(s).`);
+    }
+  } catch (err) {
+    console.error('❌ Erreur auto-expiration réservations:', err.message);
+  }
+}, 5 * 60 * 1000); // toutes les 5 minutes
