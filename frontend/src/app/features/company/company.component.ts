@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
+import { SubscriptionService } from '../../core/services/subscription.service';
 
 @Component({
   selector: 'app-company',
@@ -8,9 +9,12 @@ import { AuthService } from '../../core/services/auth.service';
   styleUrls: ['./company.component.css']
 })
 export class CompanyComponent implements OnInit {
-  activeSection: 'parking' | 'employees' | 'profile' = 'parking';
+  activeSection: 'parking' | 'employees' | 'profile' | 'subscriptions' = 'parking';
   profile: any = null;
   employees: any[] = [];
+  parkings: any[] = [];
+  subscribers: any[] = [];
+  plans: Record<string, any[]> = {}; // Map of parkingId -> plans[]
 
   // Parking request form
   parkingName = '';
@@ -29,15 +33,29 @@ export class CompanyComponent implements OnInit {
   empParkingId = '';
   empPosition = 'agent';
 
+  // Subscription Plan form
+  planName = '';
+  planDescription = '';
+  planParkingId = '';
+  planPrice: number | null = null;
+  planDurationDays: number | null = null;
+  planFeaturesInput = '';
+
   toastMessage: string | null = null;
   toastType: 'success' | 'error' = 'success';
   isLoading = false;
 
-  constructor(private userService: UserService, private authService: AuthService) {}
+  constructor(
+    private userService: UserService, 
+    private authService: AuthService,
+    private subscriptionService: SubscriptionService
+  ) {}
 
   ngOnInit(): void {
     this.loadProfile();
     this.loadEmployees();
+    this.loadParkings();
+    this.loadSubscribers();
   }
 
   showToast(msg: string, type: 'success' | 'error' = 'success'): void {
@@ -52,6 +70,36 @@ export class CompanyComponent implements OnInit {
 
   loadEmployees(): void {
     this.userService.getEmployees().subscribe({ next: r => this.employees = r.employees || [] });
+  }
+
+  loadParkings(): void {
+    this.userService.getCompanyParkings().subscribe({
+      next: r => {
+        this.parkings = r.parkings || [];
+        // Load plans for each approved parking
+        this.parkings.forEach(p => {
+          if (p.status === 'approved') {
+            this.loadPlansForParking(p._id);
+          }
+        });
+      }
+    });
+  }
+
+  loadPlansForParking(parkingId: string): void {
+    this.subscriptionService.getPlansForParking(parkingId).subscribe({
+      next: r => {
+        this.plans[parkingId] = r.plans || [];
+      }
+    });
+  }
+
+  loadSubscribers(): void {
+    this.subscriptionService.getCompanySubscribers().subscribe({
+      next: r => {
+        this.subscribers = r.subscriptions || [];
+      }
+    });
   }
 
   onSubmitParking(event: Event): void {
@@ -75,6 +123,7 @@ export class CompanyComponent implements OnInit {
         this.showToast('Demande de parking envoyée ! L\'administrateur a été notifié.');
         this.parkingName = this.parkingAddress = this.parkingCity = this.parkingZip = '';
         this.parkingSpots = this.parkingPrice = null;
+        this.loadParkings();
       },
       error: (e) => {
         this.isLoading = false;
@@ -111,6 +160,50 @@ export class CompanyComponent implements OnInit {
     });
   }
 
+  onCreatePlan(event: Event): void {
+    event.preventDefault();
+    if (!this.planName || !this.planParkingId || this.planPrice === null || !this.planDurationDays) {
+      this.showToast('Veuillez remplir les champs obligatoires du forfait', 'error');
+      return;
+    }
+
+    const features = this.planFeaturesInput
+      ? this.planFeaturesInput.split(',').map(f => f.trim()).filter(f => f.length > 0)
+      : [];
+
+    this.isLoading = true;
+    this.subscriptionService.createPlan({
+      name: this.planName,
+      description: this.planDescription,
+      parkingId: this.planParkingId,
+      price: this.planPrice,
+      durationDays: this.planDurationDays,
+      features
+    }).subscribe({
+      next: (res) => {
+        this.isLoading = false;
+        this.showToast('Plan d\'abonnement créé avec succès !');
+        this.planName = this.planDescription = this.planParkingId = this.planFeaturesInput = '';
+        this.planPrice = this.planDurationDays = null;
+        this.loadParkings(); // Reload to refresh plans list
+      },
+      error: (e) => {
+        this.isLoading = false;
+        this.showToast(e.error?.message || 'Erreur lors de la création du plan', 'error');
+      }
+    });
+  }
+
+  togglePlanStatus(planId: string, currentStatus: boolean, parkingId: string): void {
+    this.subscriptionService.updatePlan(planId, { isActive: !currentStatus }).subscribe({
+      next: () => {
+        this.showToast('Statut du plan d\'abonnement mis à jour.');
+        this.loadPlansForParking(parkingId);
+      },
+      error: (e) => this.showToast(e.error?.message || 'Erreur', 'error')
+    });
+  }
+
   onUpdateProfile(event: Event): void {
     event.preventDefault();
     this.userService.updateMe({ name: this.profile.name, phone: this.profile.phone }).subscribe({
@@ -121,5 +214,9 @@ export class CompanyComponent implements OnInit {
       },
       error: (e) => this.showToast(e.error?.message || 'Erreur', 'error')
     });
+  }
+
+  getApprovedParkings() {
+    return this.parkings.filter(p => p.status === 'approved');
   }
 }

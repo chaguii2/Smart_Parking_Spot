@@ -26,6 +26,10 @@ export class UserService {
     return this.http.post<any>(`${this.apiUrl}/parking-request`, parking);
   }
 
+  public getCompanyParkings(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/company/parkings`);
+  }
+
   public createEmployee(employee: any): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/employees`, employee);
   }

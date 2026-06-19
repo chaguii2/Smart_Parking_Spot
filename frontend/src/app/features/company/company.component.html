@@ -5,6 +5,9 @@
     <button [class.active]="activeSection === 'parking'" (click)="activeSection = 'parking'">
       <i class="fa-solid fa-square-parking"></i> Intégrer un Parking
     </button>
+    <button [class.active]="activeSection === 'subscriptions'" (click)="activeSection = 'subscriptions'">
+      <i class="fa-solid fa-file-invoice-dollar"></i> Abonnements / Forfaits
+    </button>
     <button [class.active]="activeSection === 'employees'" (click)="activeSection = 'employees'">
       <i class="fa-solid fa-users"></i> Employés ({{ employees.length }})
     </button>
@@ -13,46 +16,207 @@
     </button>
   </div>
 
-  <!-- Parking Request -->
-  <div *ngIf="activeSection === 'parking'" class="glass-card" style="margin-top: 1.5rem; max-width: 600px;">
-    <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-plus-circle" style="color: var(--primary); margin-right: 0.5rem;"></i> Soumettre une demande d'intégration de parking</h3>
-    <form (submit)="onSubmitParking($event)">
-      <div class="form-group">
-        <label>Nom du parking</label>
-        <input type="text" class="form-control" [(ngModel)]="parkingName" name="parkingName" placeholder="Parking Centre-Ville" required>
+  <!-- Parking Integration & List -->
+  <div *ngIf="activeSection === 'parking'" style="margin-top: 1.5rem;">
+    <div class="grid-2">
+      <!-- Request Form -->
+      <div class="glass-card">
+        <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-plus-circle" style="color: var(--primary); margin-right: 0.5rem;"></i> Soumettre un parking</h3>
+        <form (submit)="onSubmitParking($event)">
+          <div class="form-group">
+            <label>Nom du parking</label>
+            <input type="text" class="form-control" [(ngModel)]="parkingName" name="parkingName" placeholder="Parking Centre-Ville" required>
+          </div>
+          <div class="form-group">
+            <label>Adresse</label>
+            <input type="text" class="form-control" [(ngModel)]="parkingAddress" name="parkingAddress" placeholder="10 Rue du Port" required>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label>Ville</label>
+              <input type="text" class="form-control" [(ngModel)]="parkingCity" name="parkingCity" placeholder="Lyon" required>
+            </div>
+            <div class="form-group">
+              <label>Code postal</label>
+              <input type="text" class="form-control" [(ngModel)]="parkingZip" name="parkingZip" placeholder="69001" required>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label>Nombre de places</label>
+              <input type="number" class="form-control" [(ngModel)]="parkingSpots" name="parkingSpots" placeholder="50" min="1" required>
+            </div>
+            <div class="form-group">
+              <label>Prix par heure (€)</label>
+              <input type="number" class="form-control" [(ngModel)]="parkingPrice" name="parkingPrice" placeholder="2.50" step="0.01" min="0" required>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" [disabled]="isLoading">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>{{ isLoading ? 'Envoi...' : 'Soumettre la demande' }}</span>
+          </button>
+        </form>
       </div>
-      <div class="form-group">
-        <label>Adresse</label>
-        <input type="text" class="form-control" [(ngModel)]="parkingAddress" name="parkingAddress" placeholder="10 Rue du Port" required>
+
+      <!-- Parkings List -->
+      <div class="glass-card" style="display: flex; flex-direction: column; justify-content: flex-start;">
+        <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-list" style="color: var(--secondary); margin-right: 0.5rem;"></i> Vos Parkings</h3>
+        <div class="custom-table-container" *ngIf="parkings.length > 0" style="max-height: 400px; overflow-y: auto;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Ville</th>
+                <th>Places</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of parkings">
+                <td>
+                  <strong>{{ p.name }}</strong>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">ID: {{ p._id }}</div>
+                </td>
+                <td>{{ p.city }}</td>
+                <td>{{ p.totalSpots }}</td>
+                <td>
+                  <span class="badge" [ngClass]="'badge-' + p.status">{{ p.status }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="empty-state" *ngIf="parkings.length === 0" style="text-align: center; padding: 3rem 0;">
+          <i class="fa-solid fa-square-parking" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+          <p>Aucun parking soumis pour le moment.</p>
+        </div>
       </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-        <div class="form-group">
-          <label>Ville</label>
-          <input type="text" class="form-control" [(ngModel)]="parkingCity" name="parkingCity" placeholder="Lyon" required>
-        </div>
-        <div class="form-group">
-          <label>Code postal</label>
-          <input type="text" class="form-control" [(ngModel)]="parkingZip" name="parkingZip" placeholder="69001" required>
-        </div>
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-        <div class="form-group">
-          <label>Nombre de places</label>
-          <input type="number" class="form-control" [(ngModel)]="parkingSpots" name="parkingSpots" placeholder="50" min="1" required>
-        </div>
-        <div class="form-group">
-          <label>Prix par heure (€)</label>
-          <input type="number" class="form-control" [(ngModel)]="parkingPrice" name="parkingPrice" placeholder="2.50" step="0.01" min="0" required>
-        </div>
-      </div>
-      <button type="submit" class="btn btn-primary" [disabled]="isLoading">
-        <i class="fa-solid fa-paper-plane"></i>
-        <span>{{ isLoading ? 'Envoi...' : 'Soumettre la demande' }}</span>
-      </button>
-    </form>
+    </div>
   </div>
 
-  <!-- Employees -->
+  <!-- Subscription/Plans Tab -->
+  <div *ngIf="activeSection === 'subscriptions'" style="margin-top: 1.5rem;">
+    <div class="grid-2">
+      <!-- Create Plan Form -->
+      <div class="glass-card">
+        <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-ticket" style="color: var(--primary); margin-right: 0.5rem;"></i> Créer un forfait d'abonnement</h3>
+        <form (submit)="onCreatePlan($event)">
+          <div class="form-group">
+            <label>Parking associé (Approuvé uniquement)</label>
+            <select class="form-control" [(ngModel)]="planParkingId" name="planParkingId" required>
+              <option value="" disabled selected>-- Choisir un parking --</option>
+              <option *ngFor="let p of getApprovedParkings()" [value]="p._id">{{ p.name }} ({{ p.city }})</option>
+            </select>
+            <p *ngIf="getApprovedParkings().length === 0" style="font-size: 0.8rem; color: var(--danger); margin-top: 0.5rem;">
+              <i class="fa-solid fa-exclamation-triangle"></i> Vous devez posséder au moins un parking approuvé pour y associer des abonnements.
+            </p>
+          </div>
+          <div class="form-group">
+            <label>Nom de l'abonnement</label>
+            <input type="text" class="form-control" [(ngModel)]="planName" name="planName" placeholder="Pass Mensuel Illimité" required>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea class="form-control" [(ngModel)]="planDescription" name="planDescription" placeholder="Accès garanti en tout temps..." rows="2"></textarea>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label>Prix (€)</label>
+              <input type="number" class="form-control" [(ngModel)]="planPrice" name="planPrice" placeholder="50.00" min="0" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label>Durée (jours)</label>
+              <input type="number" class="form-control" [(ngModel)]="planDurationDays" name="planDurationDays" placeholder="30" min="1" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Avantages inclus (séparés par des virgules)</label>
+            <input type="text" class="form-control" [(ngModel)]="planFeaturesInput" name="planFeaturesInput" placeholder="Accès 24/7, Place réservée, Lavage mensuel">
+          </div>
+          <button type="submit" class="btn btn-primary" [disabled]="isLoading || getApprovedParkings().length === 0">
+            <i class="fa-solid fa-plus-circle"></i>
+            <span>{{ isLoading ? 'Création...' : 'Créer le forfait' }}</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Active Plans List -->
+      <div class="glass-card" style="display: flex; flex-direction: column; justify-content: flex-start;">
+        <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-tags" style="color: var(--secondary); margin-right: 0.5rem;"></i> Vos Forfaits Actifs</h3>
+        <div style="max-height: 450px; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem;">
+          <ng-container *ngFor="let p of getApprovedParkings()">
+            <div style="border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem; margin-bottom: 0.5rem;">
+              <h4 style="color: var(--primary); margin-bottom: 0.5rem;"><i class="fa-solid fa-square-parking"></i> {{ p.name }}</h4>
+              <div *ngIf="plans[p._id] && plans[p._id].length > 0; else noPlans">
+                <div *ngFor="let plan of plans[p._id]" style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--border-radius-sm); padding: 0.75rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <strong>{{ plan.name }}</strong>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ plan.price }}€ / {{ plan.durationDays }} jours</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ plan.description }}</div>
+                    <div style="margin-top: 0.25rem;">
+                      <span *ngFor="let f of plan.features" class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--primary); margin-right: 0.25rem; text-transform: none; font-size: 0.65rem;">{{ f }}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <button class="btn" [ngClass]="plan.isActive ? 'btn-danger' : 'btn-primary'" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; width: auto;" (click)="togglePlanStatus(plan._id, plan.isActive, p._id)">
+                      {{ plan.isActive ? 'Désactiver' : 'Activer' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <ng-template #noPlans>
+                <p style="font-size: 0.85rem; color: var(--text-muted); font-style: italic; margin-left: 1rem;">Aucun forfait d'abonnement créé pour ce parking.</p>
+              </ng-template>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscribers list -->
+    <div class="glass-card" style="margin-top: 2rem;">
+      <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-users" style="color: var(--accent); margin-right: 0.5rem;"></i> Clients Abonnés ({{ subscribers.length }})</h3>
+      <div class="custom-table-container" *ngIf="subscribers.length > 0">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Parking</th>
+              <th>Forfait</th>
+              <th>Date Début</th>
+              <th>Date Fin</th>
+              <th>Montant Payé</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let sub of subscribers">
+              <td>
+                <strong>{{ sub.clientId?.name || 'Inconnu' }}</strong>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ sub.clientId?.email }}</div>
+              </td>
+              <td>{{ sub.parkingId?.name }}</td>
+              <td>{{ sub.planId?.name }}</td>
+              <td>{{ sub.startDate | date:'dd/MM/yyyy' }}</td>
+              <td>{{ sub.endDate | date:'dd/MM/yyyy' }}</td>
+              <td>{{ sub.pricePaid }}€</td>
+              <td>
+                <span class="badge" [ngClass]="sub.status === 'active' ? 'badge-approved' : (sub.status === 'expired' ? 'badge-suspended' : 'badge-rejected')">
+                  {{ sub.status === 'active' ? 'Actif' : (sub.status === 'expired' ? 'Expiré' : 'Annulé') }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="empty-state" *ngIf="subscribers.length === 0" style="text-align: center; padding: 2rem 0;">
+        <i class="fa-solid fa-user-slash" style="font-size: 2.5rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+        <p>Aucun client n'a souscrit à vos abonnements pour le moment.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Employees Tab -->
   <div *ngIf="activeSection === 'employees'" style="margin-top: 1.5rem;">
     <div class="glass-card" style="max-width: 600px; margin-bottom: 2rem;">
       <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-user-plus" style="color: var(--accent); margin-right: 0.5rem;"></i> Créer un Employé</h3>
@@ -115,7 +279,7 @@
     </div>
   </div>
 
-  <!-- Profile -->
+  <!-- Profile Tab -->
   <div *ngIf="activeSection === 'profile' && profile" class="glass-card" style="margin-top: 1.5rem; max-width: 500px;">
     <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-user-gear" style="color: var(--secondary); margin-right: 0.5rem;"></i> Mon Profil Entreprise</h3>
     <form (submit)="onUpdateProfile($event)">

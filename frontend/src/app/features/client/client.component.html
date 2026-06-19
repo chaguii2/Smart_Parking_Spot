@@ -1,0 +1,151 @@
+<div class="dashboard-container">
+  <h1><i class="fa-solid fa-user-circle"></i> Espace Client</h1>
+
+  <div class="section-tabs">
+    <button [class.active]="activeSection === 'parkings'" (click)="activeSection = 'parkings'; selectedParking = null;">
+      <i class="fa-solid fa-square-parking"></i> Parkings & Abonnements
+    </button>
+    <button [class.active]="activeSection === 'subscriptions'" (click)="activeSection = 'subscriptions'">
+      <i class="fa-solid fa-id-card"></i> Mes Cartes d'Abonnement ({{ mySubscriptions.length }})
+    </button>
+  </div>
+
+  <!-- Parkings & Subscription Booking Tab -->
+  <div *ngIf="activeSection === 'parkings'" style="margin-top: 1.5rem;">
+    <!-- Default Parking Grid -->
+    <div *ngIf="!selectedParking">
+      <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-search" style="color: var(--primary); margin-right: 0.5rem;"></i> Sélectionnez un parking pour voir les forfaits</h3>
+      <div class="grid-3" *ngIf="parkings.length > 0">
+        <div class="glass-card" *ngFor="let p of parkings" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+              <h4 style="color: var(--primary); font-size: 1.2rem;">{{ p.name }}</h4>
+              <span class="badge badge-approved" style="font-size: 0.65rem;">Ouvert</span>
+            </div>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+              <i class="fa-solid fa-location-dot" style="margin-right: 0.25rem;"></i> {{ p.address }}, {{ p.city }}
+            </p>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+              <i class="fa-solid fa-circle-info" style="margin-right: 0.25rem;"></i> Places libres: <strong>{{ p.availableSpots }} / {{ p.totalSpots }}</strong>
+            </p>
+            <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: var(--border-radius-sm); border: 1px solid var(--glass-border); margin-bottom: 1.5rem;">
+              <span style="font-size: 0.8rem; color: var(--text-muted);">Tarif Horaire :</span>
+              <strong style="font-size: 1.1rem; color: var(--accent); margin-left: 0.5rem;">{{ p.pricePerHour }} DT/h</strong>
+            </div>
+          </div>
+          <button class="btn btn-primary" (click)="selectParking(p)">
+            <i class="fa-solid fa-ticket"></i> Voir les abonnements
+          </button>
+        </div>
+      </div>
+      <div class="empty-state glass-card" *ngIf="parkings.length === 0" style="text-align: center; padding: 4rem 0;">
+        <i class="fa-solid fa-square-parking" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+        <p>Aucun parking n'est actuellement disponible.</p>
+      </div>
+    </div>
+
+    <!-- Parking Selected: Plans list -->
+    <div *ngIf="selectedParking" class="glass-card" style="margin-top: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+        <div>
+          <button class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem; font-size: 0.9rem; margin-bottom: 0.5rem;" (click)="selectedParking = null">
+            <i class="fa-solid fa-arrow-left"></i> Retour aux parkings
+          </button>
+          <h2>Forfaits disponibles pour: {{ selectedParking.name }}</h2>
+          <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 0.25rem;">
+            <i class="fa-solid fa-location-dot"></i> {{ selectedParking.address }}, {{ selectedParking.city }}
+          </p>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 0.85rem; color: var(--text-muted);">Tarif normal: </span>
+          <span style="font-size: 1.2rem; color: var(--accent); font-weight: bold;">{{ selectedParking.pricePerHour }} DT/h</span>
+        </div>
+      </div>
+
+      <!-- Plans list -->
+      <div class="grid-3" *ngIf="plans.length > 0">
+        <div class="glass-card" *ngFor="let plan of plans" style="background: rgba(255, 255, 255, 0.02); display: flex; flex-direction: column; justify-content: space-between; height: 100%; border-color: var(--primary);">
+          <div>
+            <h3 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.3rem;">{{ plan.name }}</h3>
+            <div style="font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 1rem; font-family: 'Outfit', sans-serif;">
+              {{ plan.price }}€ <span style="font-size: 1rem; color: var(--text-secondary); font-weight: normal;">/ {{ plan.durationDays }} jours</span>
+            </div>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.4;">
+              {{ plan.description || 'Profitez d\'un accès illimité et préférentiel dans ce parking.' }}
+            </p>
+            <ul style="list-style: none; margin-bottom: 2rem;">
+              <li *ngFor="let f of plan.features" style="font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-solid fa-circle-check" style="color: var(--accent);"></i> {{ f }}
+              </li>
+              <li *ngIf="!plan.features || plan.features.length === 0" style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">
+                Accès prioritaire illimité inclus
+              </li>
+            </ul>
+          </div>
+          <button class="btn btn-primary" (click)="buySubscription(plan)" [disabled]="isLoading">
+            <i class="fa-solid fa-shopping-cart"></i> Acheter le forfait
+          </button>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="plans.length === 0" style="text-align: center; padding: 4rem 0;">
+        <i class="fa-solid fa-ticket" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+        <p>Aucun forfait d'abonnement n'a été créé pour ce parking par son entreprise.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Purchased Subscriptions Tab -->
+  <div *ngIf="activeSection === 'subscriptions'" style="margin-top: 1.5rem;">
+    <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-id-card" style="color: var(--secondary); margin-right: 0.5rem;"></i> Historique de vos abonnements</h3>
+    
+    <div class="custom-table-container" *ngIf="mySubscriptions.length > 0">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Parking</th>
+            <th>Forfait</th>
+            <th>Durée de Validité</th>
+            <th>Prix Payé</th>
+            <th>ID Transaction</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let sub of mySubscriptions">
+            <td>
+              <strong>{{ sub.parkingId?.name || 'Parking Supprimé' }}</strong>
+              <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ sub.parkingId?.address }}, {{ sub.parkingId?.city }}</div>
+            </td>
+            <td>
+              <strong>{{ sub.planId?.name || 'Forfait Supprimé' }}</strong>
+            </td>
+            <td>
+              Du {{ sub.startDate | date:'dd/MM/yyyy' }} au {{ sub.endDate | date:'dd/MM/yyyy' }}
+            </td>
+            <td>{{ sub.pricePaid }}€</td>
+            <td style="font-family: monospace; font-size: 0.85rem; color: var(--text-secondary);">{{ sub.transactionId }}</td>
+            <td>
+              <span class="badge" [ngClass]="sub.status === 'active' ? 'badge-approved' : (sub.status === 'expired' ? 'badge-suspended' : 'badge-rejected')">
+                {{ sub.status === 'active' ? 'Actif' : (sub.status === 'expired' ? 'Expiré' : 'Annulé') }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="empty-state glass-card" *ngIf="mySubscriptions.length === 0" style="text-align: center; padding: 4rem 0;">
+      <i class="fa-solid fa-credit-card" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+      <p>Vous n'avez souscrit à aucun abonnement pour le moment.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" *ngIf="toastMessage">
+  <div class="toast" [ngClass]="'toast-' + toastType">
+    <i class="fa-solid" [ngClass]="toastType === 'success' ? 'fa-circle-check' : 'fa-circle-xmark'"></i>
+    <span>{{ toastMessage }}</span>
+  </div>
+</div>
