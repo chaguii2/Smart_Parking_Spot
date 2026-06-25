@@ -8,6 +8,18 @@
     <button [class.active]="activeSection === 'parkings'" (click)="activeSection = 'parkings'">
       <i class="fa-solid fa-square-parking"></i> Demandes Parkings ({{ parkings.length }})
     </button>
+    <button [class.active]="activeSection === 'simulation'" (click)="activeSection = 'simulation'">
+      <i class="fa-solid fa-play"></i> Simulation & Places
+    </button>
+    <button [class.active]="activeSection === 'subscriptions'" (click)="activeSection = 'subscriptions'; loadAllSubscriptions();">
+      <i class="fa-solid fa-file-invoice-dollar"></i> Abonnements Globaux ({{ allSubscriptions.length }})
+    </button>
+    <button [class.active]="activeSection === 'reservations'" (click)="activeSection = 'reservations'; loadAllReservations();">
+      <i class="fa-solid fa-list-check"></i> Réservations Globales ({{ allReservations.length }})
+    </button>
+    <button [class.active]="activeSection === 'profile'" (click)="activeSection = 'profile'">
+      <i class="fa-solid fa-user-shield"></i> Mon Profil
+    </button>
   </div>
 
   <!-- Companies Section -->
@@ -63,7 +75,7 @@
               <td>{{ p.address }}</td>
               <td>{{ p.city }}</td>
               <td>{{ p.totalSpots }}</td>
-              <td>{{ p.pricePerHour }} €</td>
+              <td>{{ p.pricePerHour }} DT/h</td>
               <td>{{ p.companyId?.name || 'N/A' }}</td>
               <td>
                 <span class="badge" [ngClass]="'badge-' + p.status">{{ p.status }}</span>
@@ -85,6 +97,147 @@
       <i class="fa-solid fa-circle-parking"></i>
       <p>Aucune demande de parking pour le moment.</p>
     </div>
+  </div>
+
+  <!-- Simulation & Spots Section -->
+  <div *ngIf="activeSection === 'simulation'">
+    <div class="glass-card" style="margin-top: 1.5rem; padding: 0;" *ngIf="getApprovedParkings().length > 0">
+      <div class="custom-table-container">
+        <table class="custom-table">
+          <thead>
+            <tr><th>Nom</th><th>Ville</th><th>Places configurées</th><th>Simulateur</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of getApprovedParkings()">
+              <td><strong>{{ p.name }}</strong></td>
+              <td>{{ p.city }}</td>
+              <td>{{ p.totalSpots }} places</td>
+              <td>
+                <span class="badge" [ngClass]="p.isSimulated ? 'badge-approved' : 'badge-suspended'">
+                  {{ p.isSimulated ? 'Simulé en direct' : 'Inactif' }}
+                </span>
+              </td>
+              <td class="action-btns" style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-secondary" style="width: auto; padding: 0.4rem 1rem; font-size: 0.85rem;" (click)="generateSpots(p._id)" [disabled]="isLoading">
+                  <i class="fa-solid fa-arrows-spin"></i> Régénérer Places
+                </button>
+                <button class="btn btn-primary" style="width: auto; padding: 0.4rem 1rem; font-size: 0.85rem;" (click)="startSimulation(p._id)" *ngIf="!p.isSimulated" [disabled]="isLoading">
+                  <i class="fa-solid fa-play"></i> Démarrer Simulation
+                </button>
+                <button class="btn btn-danger" style="width: auto; padding: 0.4rem 1rem; font-size: 0.85rem;" (click)="stopSimulation(p._id)" *ngIf="p.isSimulated" [disabled]="isLoading">
+                  <i class="fa-solid fa-stop"></i> Arrêter Simulation
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="empty-state glass-card" *ngIf="getApprovedParkings().length === 0">
+      <i class="fa-solid fa-gamepad" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+      <p>Aucun parking approuvé n'est disponible pour la simulation.</p>
+    </div>
+  </div>
+
+  <!-- Subscriptions Section -->
+  <div *ngIf="activeSection === 'subscriptions'">
+    <div class="glass-card" style="margin-top: 1.5rem; padding: 0;" *ngIf="allSubscriptions.length > 0">
+      <div class="custom-table-container">
+        <table class="custom-table">
+          <thead>
+            <tr><th>Client</th><th>Parking</th><th>Forfait</th><th>Durée</th><th>Prix</th><th>Transaction</th><th>Statut</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of allSubscriptions">
+              <td>
+                <strong>{{ s.clientId?.name || 'Client Supprimé' }}</strong>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ s.clientId?.email }}</div>
+              </td>
+              <td>{{ s.parkingId?.name }}</td>
+              <td>{{ s.planId?.name }}</td>
+              <td>Du {{ s.startDate | date:'dd/MM/yyyy' }} au {{ s.endDate | date:'dd/MM/yyyy' }}</td>
+              <td>{{ s.pricePaid }}€</td>
+              <td style="font-family: monospace; font-size: 0.8rem; color: var(--text-secondary);">{{ s.transactionId }}</td>
+              <td>
+                <span class="badge" [ngClass]="s.status === 'active' ? 'badge-approved' : 'badge-suspended'">{{ s.status }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="empty-state glass-card" *ngIf="allSubscriptions.length === 0">
+      <i class="fa-solid fa-credit-card"></i>
+      <p>Aucun abonnement n'a été acheté pour le moment.</p>
+    </div>
+  </div>
+
+  <!-- Reservations Section -->
+  <div *ngIf="activeSection === 'reservations'">
+    <div class="glass-card" style="margin-top: 1.5rem; padding: 0;" *ngIf="allReservations.length > 0">
+      <div class="custom-table-container">
+        <table class="custom-table">
+          <thead>
+            <tr><th>Client</th><th>Parking</th><th>Place</th><th>Véhicule</th><th>Créneau</th><th>Prix</th><th>Statut</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of allReservations">
+              <td>
+                <strong>{{ r.clientName }}</strong>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ r.clientEmail }}</div>
+              </td>
+              <td>{{ r.parkingId?.name || 'Supprimé' }}</td>
+              <td>Place <strong style="color: var(--primary);">{{ r.spotNumber }}</strong></td>
+              <td>
+                <span style="font-family: monospace; font-size: 0.85rem; background: rgba(255,255,255,0.05); padding: 0.15rem 0.35rem; border-radius: 4px;">{{ r.vehiclePlate }}</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">{{ r.vehicleType }}</span>
+              </td>
+              <td>
+                <span style="display: block; font-size: 0.8rem;">Du {{ r.startTime | date:'dd/MM/yyyy HH:mm' }}</span>
+                <span style="display: block; font-size: 0.8rem; color: var(--text-secondary);">Au {{ r.endTime | date:'dd/MM/yyyy HH:mm' }}</span>
+              </td>
+              <td>{{ r.totalPrice }} DT ({{ r.paymentMethod }})</td>
+              <td>
+                <span class="badge" [ngClass]="{
+                  'badge-pending': r.status === 'pending',
+                  'badge-approved': r.status === 'confirmed' || r.status === 'active' || r.status === 'completed',
+                  'badge-rejected': r.status === 'cancelled',
+                  'badge-suspended': r.status === 'expired' || r.status === 'no_show'
+                }">
+                  {{ r.status }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="empty-state glass-card" *ngIf="allReservations.length === 0">
+      <i class="fa-solid fa-calendar-times"></i>
+      <p>Aucune réservation globale n'a été enregistrée pour le moment.</p>
+    </div>
+  </div>
+
+  <!-- Profile Section -->
+  <div *ngIf="activeSection === 'profile' && profile" class="glass-card" style="margin-top: 1.5rem; max-width: 500px;">
+    <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-user-shield" style="color: var(--secondary); margin-right: 0.5rem;"></i> Mon Profil Administrateur</h3>
+    <form (submit)="onUpdateProfile($event)">
+      <div class="form-group">
+        <label>Nom complet</label>
+        <input type="text" class="form-control" [(ngModel)]="profileName" name="admName" required>
+      </div>
+      <div class="form-group">
+        <label>Email de l'administrateur</label>
+        <input type="email" class="form-control" [value]="profile.email" disabled>
+      </div>
+      <div class="form-group">
+        <label>Téléphone</label>
+        <input type="text" class="form-control" [(ngModel)]="profilePhone" name="admPhone">
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <i class="fa-solid fa-floppy-disk"></i> Sauvegarder les modifications
+      </button>
+    </form>
   </div>
 </div>
 

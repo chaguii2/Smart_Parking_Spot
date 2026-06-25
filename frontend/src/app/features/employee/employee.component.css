@@ -1,0 +1,80 @@
+/* spots grid styling */
+.spots-grid {
+  margin-top: 1rem;
+}
+
+.spot-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--border-radius-md) !important;
+  transition: var(--transition-smooth) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.spot-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+  border-color: var(--glass-highlight) !important;
+}
+
+/* Spot state-specific colors and glow effects */
+.spot-available {
+  background: rgba(16, 185, 129, 0.04) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  color: var(--accent);
+}
+.spot-available:hover {
+  background: rgba(16, 185, 129, 0.08) !important;
+  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.15);
+}
+
+.spot-occupied {
+  background: rgba(168, 85, 247, 0.04) !important;
+  border-color: rgba(168, 85, 247, 0.25) !important;
+  color: var(--secondary);
+}
+.spot-occupied:hover {
+  background: rgba(168, 85, 247, 0.08) !important;
+  box-shadow: 0 8px 16px rgba(168, 85, 247, 0.15);
+}
+
+.spot-reserved {
+  background: rgba(245, 158, 11, 0.04) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  color: var(--warning);
+}
+.spot-reserved:hover {
+  background: rgba(245, 158, 11, 0.08) !important;
+  box-shadow: 0 8px 16px rgba(245, 158, 11, 0.15);
+}
+
+.spot-maintenance {
+  background: rgba(239, 68, 68, 0.04) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+  color: var(--danger);
+}
+.spot-maintenance:hover {
+  background: rgba(239, 68, 68, 0.08) !important;
+  box-shadow: 0 8px 16px rgba(239, 68, 68, 0.15);
+}
+
+.spot-item.selected {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px var(--primary-glow) !important;
+  transform: scale(1.05);
+}
+
+/* Scanner results */
+.scanner-container {
+  max-width: 600px;
+}
+
+code {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-family: monospace;
+}

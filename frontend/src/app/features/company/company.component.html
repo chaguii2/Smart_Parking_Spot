@@ -8,6 +8,9 @@
     <button [class.active]="activeSection === 'subscriptions'" (click)="activeSection = 'subscriptions'">
       <i class="fa-solid fa-file-invoice-dollar"></i> Abonnements / Forfaits
     </button>
+    <button [class.active]="activeSection === 'reservations'" (click)="activeSection = 'reservations'">
+      <i class="fa-solid fa-chart-line"></i> Réservations & Stats
+    </button>
     <button [class.active]="activeSection === 'employees'" (click)="activeSection = 'employees'">
       <i class="fa-solid fa-users"></i> Employés ({{ employees.length }})
     </button>
@@ -216,6 +219,84 @@
     </div>
   </div>
 
+  <!-- Reservations & Analytics Tab -->
+  <div *ngIf="activeSection === 'reservations'" style="margin-top: 1.5rem;">
+    <div *ngFor="let p of getApprovedParkings()" class="glass-card" style="margin-bottom: 2.5rem; border-color: var(--primary);">
+      <h2 style="color: var(--primary); margin-bottom: 1.5rem;"><i class="fa-solid fa-square-parking"></i> {{ p.name }} ({{ p.city }})</h2>
+      
+      <!-- Stats Cards -->
+      <div class="grid-3" style="gap: 1.5rem; margin-bottom: 2rem;">
+        <div style="background: rgba(255,255,255,0.02); padding: 1.25rem; border-radius: var(--border-radius-md); border: 1px solid var(--glass-border); text-align: center;">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Revenus Totaux</span>
+          <p style="font-size: 2rem; font-weight: bold; color: var(--accent); margin-top: 0.5rem;">{{ parkingStats[p._id]?.revenue || 0 }} DT</p>
+        </div>
+        <div style="background: rgba(255,255,255,0.02); padding: 1.25rem; border-radius: var(--border-radius-md); border: 1px solid var(--glass-border); text-align: center;">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Réservations Totales</span>
+          <p style="font-size: 2rem; font-weight: bold; color: #fff; margin-top: 0.5rem;">{{ parkingStats[p._id]?.totalReservations || 0 }}</p>
+        </div>
+        <div style="background: rgba(255,255,255,0.02); padding: 1.25rem; border-radius: var(--border-radius-md); border: 1px solid var(--glass-border); text-align: center;">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Annulations / No-Shows</span>
+          <p style="font-size: 2rem; font-weight: bold; color: var(--danger); margin-top: 0.5rem;">
+            {{ (parkingStats[p._id]?.cancelledCount || 0) + ' / ' + (parkingStats[p._id]?.noShowCount || 0) }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Reservations list per parking -->
+      <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: var(--text-secondary);">📋 Historique des Réservations</h3>
+      <div class="custom-table-container" *ngIf="parkingReservations[p._id] && parkingReservations[p._id].length > 0">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Place</th>
+              <th>Véhicule</th>
+              <th>Créneau</th>
+              <th>Prix</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of parkingReservations[p._id]">
+              <td>
+                <strong>{{ r.clientName }}</strong>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ r.clientEmail }}</div>
+              </td>
+              <td>Place <strong style="color: var(--primary);">{{ r.spotNumber }}</strong></td>
+              <td>
+                <span style="font-family: monospace; font-size: 0.85rem; background: rgba(255,255,255,0.05); padding: 0.15rem 0.35rem; border-radius: 4px;">{{ r.vehiclePlate }}</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">{{ r.vehicleType }}</span>
+              </td>
+              <td>
+                <span style="display: block; font-size: 0.8rem;">Du {{ r.startTime | date:'dd/MM/yyyy HH:mm' }}</span>
+                <span style="display: block; font-size: 0.8rem; color: var(--text-secondary);">Au {{ r.endTime | date:'dd/MM/yyyy HH:mm' }}</span>
+              </td>
+              <td>{{ r.totalPrice }} DT ({{ r.paymentMethod }})</td>
+              <td>
+                <span class="badge" [ngClass]="{
+                  'badge-pending': r.status === 'pending',
+                  'badge-approved': r.status === 'confirmed' || r.status === 'active' || r.status === 'completed',
+                  'badge-rejected': r.status === 'cancelled',
+                  'badge-suspended': r.status === 'expired' || r.status === 'no_show'
+                }">
+                  {{ r.status }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div *ngIf="!parkingReservations[p._id] || parkingReservations[p._id].length === 0" style="text-align: center; padding: 2rem 0; color: var(--text-muted); font-style: italic;">
+        Aucune réservation sur ce parking pour le moment.
+      </div>
+    </div>
+    
+    <div class="empty-state glass-card" *ngIf="getApprovedParkings().length === 0" style="text-align: center; padding: 4rem 0;">
+      <i class="fa-solid fa-calendar-times" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+      <p>Vous devez posséder un parking approuvé pour suivre ses réservations et analyses.</p>
+    </div>
+  </div>
+
   <!-- Employees Tab -->
   <div *ngIf="activeSection === 'employees'" style="margin-top: 1.5rem;">
     <div class="glass-card" style="max-width: 600px; margin-bottom: 2rem;">
@@ -238,8 +319,11 @@
           <input type="text" class="form-control" [(ngModel)]="empPhone" name="empPhone" placeholder="0789012345" required>
         </div>
         <div class="form-group">
-          <label>ID du Parking (approuvé)</label>
-          <input type="text" class="form-control" [(ngModel)]="empParkingId" name="empParkingId" placeholder="ID MongoDB du parking approuvé" required>
+          <label>Parking associé (Approuvé uniquement)</label>
+          <select class="form-control" [(ngModel)]="empParkingId" name="empParkingId" required>
+            <option value="" disabled selected>-- Choisir le parking --</option>
+            <option *ngFor="let p of getApprovedParkings()" [value]="p._id">{{ p.name }} ({{ p.city }})</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Position</label>
@@ -249,7 +333,7 @@
             <option value="manager">Manager</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-primary" [disabled]="isLoading">
+        <button type="submit" class="btn btn-primary" [disabled]="isLoading || getApprovedParkings().length === 0">
           <i class="fa-solid fa-user-plus"></i>
           <span>{{ isLoading ? 'Création...' : 'Créer l\'employé' }}</span>
         </button>
@@ -296,8 +380,12 @@
         <input type="text" class="form-control" [(ngModel)]="profile.phone" name="pPhone">
       </div>
       <div class="form-group">
-        <label>SIRET</label>
-        <input type="text" class="form-control" [value]="profile.siret" disabled>
+        <label>Numéro SIRET</label>
+        <input type="text" class="form-control" [(ngModel)]="profileSiret" name="pSiret" placeholder="98765432100025">
+      </div>
+      <div class="form-group">
+        <label>Adresse du Siège Social</label>
+        <input type="text" class="form-control" [(ngModel)]="profileAddress" name="pAddress" placeholder="12 Boulevard de l'Europe, Lyon">
       </div>
       <div class="form-group">
         <label>Statut du compte</label>

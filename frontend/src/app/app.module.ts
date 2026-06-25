@@ -11,6 +11,7 @@ import { CompanyComponent } from './features/company/company.component';
 import { ClientComponent } from './features/client/client.component';
 import { HeaderComponent } from './shared/components/header/header.component';
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
+import { EmployeeComponent } from './features/employee/employee.component';
 
 @NgModule({
   declarations: [
@@ -19,7 +20,8 @@ import { AuthInterceptor } from './core/interceptors/auth.interceptor';
     AdminComponent,
     CompanyComponent,
     ClientComponent,
-    HeaderComponent
+    HeaderComponent,
+    EmployeeComponent
   ],
   imports: [
     BrowserModule,

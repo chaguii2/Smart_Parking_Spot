@@ -4,7 +4,8 @@ import { AuthComponent } from './features/auth/auth.component';
 import { AdminComponent } from './features/admin/admin.component';
 import { CompanyComponent } from './features/company/company.component';
 import { ClientComponent } from './features/client/client.component';
-import { AuthGuard } from './core/auth/auth.guard';
+import { EmployeeComponent } from './features/employee/employee.component';
+import { AuthGuard } from './core/guards/auth.guard';
 
 const routes: Routes = [
   { path: 'auth', component: AuthComponent },
@@ -19,6 +20,12 @@ const routes: Routes = [
     component: CompanyComponent, 
     canActivate: [AuthGuard], 
     data: { roles: ['company'] } 
+  },
+  { 
+    path: 'employee', 
+    component: EmployeeComponent, 
+    canActivate: [AuthGuard], 
+    data: { roles: ['employee'] } 
   },
   { 
     path: 'client', 

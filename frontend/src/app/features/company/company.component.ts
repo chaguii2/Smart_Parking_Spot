@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SubscriptionService } from '../../core/services/subscription.service';
+import { ReservationService } from '../../core/services/reservation.service';
 
 @Component({
   selector: 'app-company',
@@ -9,12 +10,14 @@ import { SubscriptionService } from '../../core/services/subscription.service';
   styleUrls: ['./company.component.css']
 })
 export class CompanyComponent implements OnInit {
-  activeSection: 'parking' | 'employees' | 'profile' | 'subscriptions' = 'parking';
+  activeSection: 'parking' | 'employees' | 'profile' | 'subscriptions' | 'reservations' = 'parking';
   profile: any = null;
   employees: any[] = [];
   parkings: any[] = [];
   subscribers: any[] = [];
   plans: Record<string, any[]> = {}; // Map of parkingId -> plans[]
+  parkingReservations: Record<string, any[]> = {}; // Map of parkingId -> reservations[]
+  parkingStats: Record<string, any> = {}; // Map of parkingId -> stats object
 
   // Parking request form
   parkingName = '';
@@ -41,6 +44,10 @@ export class CompanyComponent implements OnInit {
   planDurationDays: number | null = null;
   planFeaturesInput = '';
 
+  // Profile fields (inputs bound directly to template inputs)
+  profileAddress = '';
+  profileSiret = '';
+
   toastMessage: string | null = null;
   toastType: 'success' | 'error' = 'success';
   isLoading = false;
@@ -48,7 +55,8 @@ export class CompanyComponent implements OnInit {
   constructor(
     private userService: UserService, 
     private authService: AuthService,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    private reservationService: ReservationService
   ) {}
 
   ngOnInit(): void {
@@ -65,21 +73,35 @@ export class CompanyComponent implements OnInit {
   }
 
   loadProfile(): void {
-    this.userService.getMe().subscribe({ next: r => this.profile = r.user });
+    this.userService.getMe().subscribe({ 
+      next: r => {
+        this.profile = r.user;
+        this.profileAddress = this.profile.address || '';
+        this.profileSiret = this.profile.siret || '';
+      }
+    });
   }
 
   loadEmployees(): void {
     this.userService.getEmployees().subscribe({ next: r => this.employees = r.employees || [] });
   }
 
+  loadSubscribers(): void {
+    this.subscriptionService.getCompanySubscribers().subscribe({
+      next: r => this.subscribers = r.subscriptions || r.subscribers || []
+    });
+  }
+
   loadParkings(): void {
     this.userService.getCompanyParkings().subscribe({
       next: r => {
         this.parkings = r.parkings || [];
-        // Load plans for each approved parking
+        // Load plans, reservations, and stats for each approved parking
         this.parkings.forEach(p => {
           if (p.status === 'approved') {
             this.loadPlansForParking(p._id);
+            this.loadReservationsForParking(p._id);
+            this.loadStatsForParking(p._id);
           }
         });
       }
@@ -94,10 +116,18 @@ export class CompanyComponent implements OnInit {
     });
   }
 
-  loadSubscribers(): void {
-    this.subscriptionService.getCompanySubscribers().subscribe({
+  loadReservationsForParking(parkingId: string): void {
+    this.reservationService.getParkingReservations(parkingId).subscribe({
       next: r => {
-        this.subscribers = r.subscriptions || [];
+        this.parkingReservations[parkingId] = r.data || [];
+      }
+    });
+  }
+
+  loadStatsForParking(parkingId: string): void {
+    this.reservationService.getParkingStats(parkingId).subscribe({
+      next: r => {
+        this.parkingStats[parkingId] = r.data || null;
       }
     });
   }
@@ -206,7 +236,13 @@ export class CompanyComponent implements OnInit {
 
   onUpdateProfile(event: Event): void {
     event.preventDefault();
-    this.userService.updateMe({ name: this.profile.name, phone: this.profile.phone }).subscribe({
+    const payload = {
+      name: this.profile.name,
+      phone: this.profile.phone,
+      address: this.profileAddress,
+      siret: this.profileSiret
+    };
+    this.userService.updateMe(payload).subscribe({
       next: (r) => {
         this.profile = r.user;
         this.authService.updateCurrentUserValue({ name: r.user.name });
