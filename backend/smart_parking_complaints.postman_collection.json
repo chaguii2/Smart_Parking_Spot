@@ -1,0 +1,318 @@
+{
+  "info": {
+    "_postman_id": "complaints_api_collection",
+    "name": "Smart Parking - Complaints API",
+    "description": "Complete API testing collection for the integrated complaints management system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Create Complaint",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Parking spot was already occupied\",\n  \"description\": \"I arrived at the reserved parking spot but found another vehicle parked there. This caused significant inconvenience as I had to find alternative parking.\",\n  \"category\": \"parking_problem\",\n  \"priority\": \"high\",\n  \"parkingId\": \"{{parkingId}}\",\n  \"reservationId\": \"{{reservationId}}\",\n  \"attachments\": []\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints"]
+        }
+      }
+    },
+    {
+      "name": "2. Get All Complaints",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints?status=pending&priority=high&sortBy=-createdAt",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints"],
+          "query": [
+            {
+              "key": "status",
+              "value": "pending"
+            },
+            {
+              "key": "priority",
+              "value": "high"
+            },
+            {
+              "key": "sortBy",
+              "value": "-createdAt"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Get Complaint by ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints/{{complaintId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints", "{{complaintId}}"]
+        }
+      }
+    },
+    {
+      "name": "4. Get Complaints by User",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints/user/{{userId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints", "user", "{{userId}}"]
+        }
+      }
+    },
+    {
+      "name": "5. Get Complaints by Parking",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints/parking/{{parkingId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints", "parking", "{{parkingId}}"]
+        }
+      }
+    },
+    {
+      "name": "6. Update Complaint Status (Admin)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"in_progress\",\n  \"response\": \"We are investigating this issue. We have reviewed the parking lot management system and found a spot assignment error. We are working to resolve it.\",\n  \"assignedTo\": \"{{adminUserId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints/{{complaintId}}/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints", "{{complaintId}}", "status"]
+        }
+      }
+    },
+    {
+      "name": "7. Resolve Complaint (Admin)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"resolved\",\n  \"response\": \"The issue has been resolved. Our maintenance team has updated the parking spot assignment system to prevent double bookings. A complimentary parking pass has been credited to your account.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints/{{complaintId}}/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints", "{{complaintId}}", "status"]
+        }
+      }
+    },
+    {
+      "name": "8. Add Resolution Feedback",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"resolutionRating\": 5,\n  \"resolutionFeedback\": \"Excellent resolution! The team responded quickly and provided fair compensation. The problem has been completely solved.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints/{{complaintId}}/feedback",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints", "{{complaintId}}", "feedback"]
+        }
+      }
+    },
+    {
+      "name": "9. Get Complaint Statistics (Admin)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints/stats/overview",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints", "stats", "overview"]
+        }
+      }
+    },
+    {
+      "name": "10. Delete Complaint",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints/{{complaintId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints", "{{complaintId}}"]
+        }
+      }
+    },
+    {
+      "name": "Test Data - Payment Problem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Double charge on reservation\",\n  \"description\": \"I was charged twice for the same reservation. My bank account shows two identical transactions on the same day.\",\n  \"category\": \"payment_problem\",\n  \"priority\": \"urgent\",\n  \"reservationId\": \"{{reservationId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints"]
+        }
+      }
+    },
+    {
+      "name": "Test Data - Technical Issue",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"App crashes on reservation page\",\n  \"description\": \"The application crashes every time I try to access my reservations. Error occurs consistently on Chrome and Firefox.\",\n  \"category\": \"application_bug\",\n  \"priority\": \"high\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/complaints",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "complaints"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "your_client_token_here",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "your_admin_token_here",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "your_user_id_here",
+      "type": "string"
+    },
+    {
+      "key": "adminUserId",
+      "value": "your_admin_id_here",
+      "type": "string"
+    },
+    {
+      "key": "complaintId",
+      "value": "created_complaint_id_here",
+      "type": "string"
+    },
+    {
+      "key": "parkingId",
+      "value": "parking_id_here",
+      "type": "string"
+    },
+    {
+      "key": "reservationId",
+      "value": "reservation_id_here",
+      "type": "string"
+    }
+  ]
+}

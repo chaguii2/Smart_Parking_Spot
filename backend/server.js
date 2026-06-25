@@ -41,6 +41,7 @@ const iaRoutes      = require('./src/routes/ia');
 const parkingRoutes = require('./src/routes/parking');
 const subscriptionRoutes = require('./src/routes/subscription');
 const reservationRoutes = require('./src/routes/reservation');
+const complaintRoutes = require('./src/routes/complaints');
 
 app.use('/api/auth',         authRoutes);
 app.use('/api/users',        userRoutes);
@@ -49,6 +50,7 @@ app.use('/api/ia',           iaRoutes);
 app.use('/api/parking',      parkingRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/complaints',   complaintRoutes);
 
 // ==================== MOCK EMAILS ====================
 const MockEmail = require('./src/models/MockEmail');
