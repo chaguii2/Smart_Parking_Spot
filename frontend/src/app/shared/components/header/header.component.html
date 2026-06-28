@@ -5,9 +5,9 @@
       <span class="text-gradient-primary">Smart Parking</span>
     </div>
     <div class="header-right" style="display: flex; align-items: center; gap: 1rem;">
-      <!-- Virtual Mailbox Button -->
-      <button class="btn-mailbox" (click)="toggleMailbox()" title="Boîte mail virtuelle (Simulateur)">
-        <i class="fa-solid fa-envelope" style="font-size: 1.2rem;"></i>
+      <!-- Centre de Notifications Button -->
+      <button class="btn-mailbox" (click)="toggleMailbox()" title="Centre de Notifications (Emails envoyés)">
+        <i class="fa-solid fa-bell" style="font-size: 1.2rem;"></i>
         <span class="mail-badge" *ngIf="mockEmails.length > 0">{{ mockEmails.length }}</span>
       </button>
 
@@ -21,10 +21,10 @@
   </div>
 </header>
 
-<!-- Virtual Mailbox Drawer -->
+<!-- Centre de Notifications Drawer -->
 <div class="mailbox-drawer glass-card" *ngIf="showMailbox && authService.isLoggedIn()">
   <div class="drawer-header">
-    <h3>📬 Boîte Virtuelle (Emails envoyés par le Back)</h3>
+    <h3>🔔 Notifications (Emails envoyés)</h3>
     <div style="display: flex; gap: 0.5rem;">
       <button class="btn btn-secondary" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;" (click)="loadMockEmails()" [disabled]="isLoadingMail">
         <i class="fa-solid fa-arrows-rotate"></i>
@@ -39,15 +39,15 @@
   <div class="drawer-body">
     <div *ngFor="let mail of mockEmails" class="mail-item" style="border-bottom: 1px solid var(--glass-border); padding: 1rem 0; font-size: 0.85rem;">
       <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-        <strong style="color: var(--primary);">À: {{ mail.to }}</strong>
+        <strong style="color: var(--primary);">Destinataire: {{ mail.to }}</strong>
         <span style="font-size: 0.75rem; color: var(--text-muted);">{{ mail.createdAt | date:'HH:mm:ss' }}</span>
       </div>
       <div style="font-weight: 600; color: #fff; margin-bottom: 0.5rem;">Sujet: {{ mail.subject }}</div>
       <div class="mail-body-content" [innerHTML]="mail.body" style="background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: var(--border-radius-sm); border: 1px solid var(--glass-border); max-height: 150px; overflow-y: auto;"></div>
     </div>
     <div class="empty-state" *ngIf="mockEmails.length === 0" style="text-align: center; padding: 3rem 0; color: var(--text-muted);">
-      <i class="fa-solid fa-envelope-open" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
-      <p>Aucun email simulé reçu pour le moment.</p>
+      <i class="fa-solid fa-bell-slash" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
+      <p>Aucune notification reçue pour le moment.</p>
     </div>
   </div>
 </div>

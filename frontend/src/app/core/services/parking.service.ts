@@ -54,7 +54,25 @@ export class ParkingService {
   }
 
   public updateSpotStatus(spotId: string, status: string): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/spots/${spotId}/status`, { status });
+    // The backend uses boolean flags (isAvailable, isReserved) + uppercase status string
+    let payload: any = {};
+    switch (status) {
+      case 'available':
+        payload = { isAvailable: true, isReserved: false, status: 'ACTIVE' };
+        break;
+      case 'occupied':
+        payload = { isAvailable: false, isReserved: false, status: 'ACTIVE' };
+        break;
+      case 'reserved':
+        payload = { isAvailable: false, isReserved: true, status: 'ACTIVE' };
+        break;
+      case 'maintenance':
+        payload = { isAvailable: false, isReserved: false, status: 'MAINTENANCE' };
+        break;
+      default:
+        payload = { status: status.toUpperCase() };
+    }
+    return this.http.put<any>(`${this.apiUrl}/spots/${spotId}/status`, payload);
   }
 
   public generateSpots(parkingId: string): Observable<any> {

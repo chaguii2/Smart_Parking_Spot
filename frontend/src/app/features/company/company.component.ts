@@ -3,6 +3,7 @@ import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SubscriptionService } from '../../core/services/subscription.service';
 import { ReservationService } from '../../core/services/reservation.service';
+import { FaceAuthService } from '../../core/services/face-auth.service';
 
 @Component({
   selector: 'app-company',
@@ -35,6 +36,26 @@ export class CompanyComponent implements OnInit {
   empPhone = '';
   empParkingId = '';
   empPosition = 'agent';
+  empShiftStart = '08:00';
+  empShiftEnd = '17:00';
+
+  // Activity logs modal state
+  selectedEmployeeForLogs: any = null;
+  employeeLogs: any[] = [];
+  showLogsModal = false;
+
+  // Face Enrollment state
+  showFaceEnrollModal = false;
+  enrollingEmployee: any = null;
+  faceEnrollStream: MediaStream | null = null;
+  faceEnrollMessage = 'Chargement des modèles d\'IA...';
+  faceEnrollError = '';
+  capturedDescriptor: any = null;
+  private faceEnrollInterval: any = null;
+
+  // Employee edit state
+  isEditingEmp = false;
+  editingEmpId = '';
 
   // Subscription Plan form
   planName = '';
@@ -56,7 +77,8 @@ export class CompanyComponent implements OnInit {
     private userService: UserService, 
     private authService: AuthService,
     private subscriptionService: SubscriptionService,
-    private reservationService: ReservationService
+    private reservationService: ReservationService,
+    private faceAuthService: FaceAuthService
   ) {}
 
   ngOnInit(): void {
@@ -175,17 +197,95 @@ export class CompanyComponent implements OnInit {
       password: this.empPassword,
       phone: this.empPhone,
       parkingId: this.empParkingId,
-      position: this.empPosition
+      position: this.empPosition,
+      shiftStart: this.empShiftStart,
+      shiftEnd: this.empShiftEnd
     }).subscribe({
       next: () => {
         this.isLoading = false;
         this.showToast('Employé créé ! Un email avec ses identifiants lui a été envoyé.');
         this.empName = this.empEmail = this.empPassword = this.empPhone = this.empParkingId = '';
+        this.empShiftStart = '08:00';
+        this.empShiftEnd = '17:00';
         this.loadEmployees();
       },
       error: (e) => {
         this.isLoading = false;
         this.showToast(e.error?.message || 'Erreur', 'error');
+      }
+    });
+  }
+
+  startEditEmployee(emp: any): void {
+    this.isEditingEmp = true;
+    this.editingEmpId = emp._id;
+    this.empName = emp.name;
+    this.empEmail = emp.email;
+    this.empPhone = emp.phone || '';
+    this.empParkingId = emp.parkingId || '';
+    this.empPosition = emp.position || 'agent';
+    this.empShiftStart = emp.shiftStart || '08:00';
+    this.empShiftEnd = emp.shiftEnd || '17:00';
+  }
+
+  cancelEditEmployee(): void {
+    this.isEditingEmp = false;
+    this.editingEmpId = '';
+    this.empName = '';
+    this.empEmail = '';
+    this.empPassword = '';
+    this.empPhone = '';
+    this.empParkingId = '';
+    this.empPosition = 'agent';
+    this.empShiftStart = '08:00';
+    this.empShiftEnd = '17:00';
+  }
+
+  onUpdateEmployee(event: Event): void {
+    event.preventDefault();
+    if (!this.empName || !this.empPhone || !this.empParkingId) {
+      this.showToast('Veuillez remplir tous les champs obligatoires (Nom, Téléphone, Parking)', 'error');
+      return;
+    }
+    this.isLoading = true;
+    this.userService.updateUser(this.editingEmpId, {
+      name: this.empName,
+      phone: this.empPhone,
+      parkingId: this.empParkingId,
+      position: this.empPosition,
+      shiftStart: this.empShiftStart,
+      shiftEnd: this.empShiftEnd
+    }).subscribe({
+      next: () => {
+        this.isLoading = false;
+        this.showToast('Employé mis à jour avec succès !');
+        this.cancelEditEmployee();
+        this.loadEmployees();
+      },
+      error: (e) => {
+        this.isLoading = false;
+        this.showToast(e.error?.message || 'Erreur lors de la modification', 'error');
+      }
+    });
+  }
+
+  onDeleteEmployee(id: string): void {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.')) {
+      return;
+    }
+    this.isLoading = true;
+    this.userService.deleteUser(id).subscribe({
+      next: () => {
+        this.isLoading = false;
+        this.showToast('Employé supprimé avec succès.');
+        if (this.isEditingEmp && this.editingEmpId === id) {
+          this.cancelEditEmployee();
+        }
+        this.loadEmployees();
+      },
+      error: (e) => {
+        this.isLoading = false;
+        this.showToast(e.error?.message || 'Erreur lors de la suppression', 'error');
       }
     });
   }
@@ -254,5 +354,153 @@ export class CompanyComponent implements OnInit {
 
   getApprovedParkings() {
     return this.parkings.filter(p => p.status === 'approved');
+  }
+
+  viewEmployeeLogs(emp: any): void {
+    this.selectedEmployeeForLogs = emp;
+    this.employeeLogs = [];
+    this.showLogsModal = true;
+    this.isLoading = true;
+    this.userService.getEmployeeLogs(emp._id).subscribe({
+      next: (res) => {
+        this.isLoading = false;
+        this.employeeLogs = res.data || [];
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.showToast('Erreur lors du chargement des logs.', 'error');
+      }
+    });
+  }
+
+  closeLogsModal(): void {
+    this.showLogsModal = false;
+    this.selectedEmployeeForLogs = null;
+    this.employeeLogs = [];
+  }
+
+  // ─── Enrôlement Visage Employé ─────────────────────────────────────────────
+
+  public startFaceEnroll(emp: any): void {
+    this.enrollingEmployee = emp;
+    this.showFaceEnrollModal = true;
+    this.faceEnrollError = '';
+    this.capturedDescriptor = null;
+    this.faceEnrollMessage = 'Chargement des modèles d\'IA...';
+
+    this.faceAuthService.loadModels().subscribe({
+      next: () => {
+        this.faceEnrollMessage = 'Accès à la caméra...';
+        navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 300 } })
+          .then(stream => {
+            this.faceEnrollStream = stream;
+            const video = document.getElementById('faceEnrollVideo') as HTMLVideoElement;
+            if (video) {
+              video.srcObject = stream;
+              this.faceEnrollMessage = 'Regardez la caméra et cliquez sur "Capturer"';
+              // Check periodically if a face is visible to guide user
+              this.startEnrollDetectionLoop(video);
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            this.faceEnrollError = 'Impossible d\'accéder à la caméra. Veuillez vérifier les permissions.';
+          });
+      },
+      error: () => {
+        this.faceEnrollError = 'Erreur lors du chargement des modèles de reconnaissance faciale.';
+      }
+    });
+  }
+
+  private startEnrollDetectionLoop(video: HTMLVideoElement): void {
+    if (this.faceEnrollInterval) clearInterval(this.faceEnrollInterval);
+    
+    this.faceEnrollInterval = setInterval(() => {
+      if (video.paused || video.ended || this.capturedDescriptor) return;
+      
+      this.faceAuthService.getFaceDescriptor(video).subscribe({
+        next: (descriptor) => {
+          if (descriptor) {
+            this.faceEnrollMessage = 'Visage prêt pour la capture !';
+          } else {
+            this.faceEnrollMessage = 'Aucun visage détecté. Cadrez bien le visage dans le cercle.';
+          }
+        }
+      });
+    }, 1000);
+  }
+
+  public captureFace(): void {
+    const video = document.getElementById('faceEnrollVideo') as HTMLVideoElement;
+    if (!video) return;
+
+    this.faceEnrollMessage = 'Analyse du visage...';
+    this.faceAuthService.getFaceDescriptor(video).subscribe({
+      next: (descriptor) => {
+        if (descriptor) {
+          this.capturedDescriptor = Array.from(descriptor);
+          this.faceEnrollMessage = 'Visage capturé avec succès ! Enregistrez pour finaliser.';
+          if (this.faceEnrollInterval) {
+            clearInterval(this.faceEnrollInterval);
+            this.faceEnrollInterval = null;
+          }
+        } else {
+          this.faceEnrollMessage = 'Échec de la capture : aucun visage détecté. Veuillez réaligner.';
+        }
+      },
+      error: () => {
+        this.faceEnrollMessage = 'Erreur lors de la capture. Réessayez.';
+      }
+    });
+  }
+
+  public saveFaceEnroll(): void {
+    if (!this.capturedDescriptor || !this.enrollingEmployee) return;
+
+    this.isLoading = true;
+    this.faceAuthService.enrollFace(this.enrollingEmployee._id, this.capturedDescriptor).subscribe({
+      next: (res) => {
+        this.isLoading = false;
+        this.showToast('Visage enregistré avec succès ! L\'employé peut se connecter par visage.');
+        this.closeFaceEnrollModal();
+        this.loadEmployees(); // Refresh list to update badge
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.showToast(err.error?.message || 'Erreur lors de l\'enregistrement.', 'error');
+      }
+    });
+  }
+
+  public deleteFaceEnroll(emp: any): void {
+    if (!confirm(`Supprimer le visage enregistré pour ${emp.name} ?`)) return;
+
+    this.isLoading = true;
+    this.faceAuthService.deleteFace(emp._id).subscribe({
+      next: () => {
+        this.isLoading = false;
+        this.showToast('Visage supprimé avec succès.');
+        this.loadEmployees();
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.showToast(err.error?.message || 'Erreur lors de la suppression.', 'error');
+      }
+    });
+  }
+
+  public closeFaceEnrollModal(): void {
+    if (this.faceEnrollInterval) {
+      clearInterval(this.faceEnrollInterval);
+      this.faceEnrollInterval = null;
+    }
+    if (this.faceEnrollStream) {
+      this.faceEnrollStream.getTracks().forEach((track: any) => track.stop());
+      this.faceEnrollStream = null;
+    }
+    this.showFaceEnrollModal = false;
+    this.enrollingEmployee = null;
+    this.capturedDescriptor = null;
   }
 }

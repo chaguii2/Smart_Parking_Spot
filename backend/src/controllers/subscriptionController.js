@@ -2,6 +2,8 @@ const { validationResult } = require('express-validator');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
 const Subscription = require('../models/Subscription');
 const Parking = require('../models/Parking');
+const User = require('../models/User');
+const { sendEmail } = require('../utils/emailService');
 
 // ==================== COMPANY ACTIONS ====================
 
@@ -36,6 +38,39 @@ exports.createPlan = async (req, res, next) => {
     });
 
     await plan.save();
+
+    // Notifier tous les clients par e-mail en arrière-plan (non bloquant)
+    (async () => {
+      try {
+        const clients = await User.find({ role: 'client' });
+        
+        const emailBody = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #6366f1; text-align: center;">📢 Nouvelle Offre d'Abonnement Disponible !</h2>
+            <p>Bonjour,</p>
+            <p>Nous avons le plaisir de vous annoncer qu'une nouvelle offre d'abonnement est désormais disponible pour le parking <strong>${parking.name}</strong> (${parking.city}).</p>
+            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin: 15px 0;">
+              <h3 style="margin: 0 0 10px 0; color: #6366f1;">${plan.name}</h3>
+              <p style="margin: 5px 0;"><strong>Description :</strong> ${plan.description || 'Aucune description disponible.'}</p>
+              <p style="margin: 5px 0;"><strong>Tarif :</strong> ${plan.price} DT</p>
+              <p style="margin: 5px 0;"><strong>Durée de validité :</strong> ${plan.durationDays} jours</p>
+              ${plan.features && plan.features.length > 0 ? `<p style="margin: 5px 0;"><strong>Avantages inclus :</strong> ${plan.features.join(', ')}</p>` : ''}
+            </div>
+            <p>Connectez-vous dès maintenant sur l'application Smart Parking pour vous abonner et garantir votre place !</p>
+            <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">Ceci est un e-mail automatique du système Smart Parking.</p>
+          </div>
+        `;
+
+        for (const client of clients) {
+          await sendEmail(client.email, `Nouvelle offre Smart Parking : ${plan.name}`, emailBody);
+        }
+        console.log(`📢 [NOTIFICATIONS ENVOYÉES] Nouvelle offre "${plan.name}" envoyée aux clients.`);
+      } catch (err) {
+        console.error('❌ Erreur lors de l\'envoi des notifications d\'offre aux clients:', err.message);
+      }
+    })();
+
     res.status(201).json({ message: 'Plan d\'abonnement créé avec succès.', plan });
   } catch (error) {
     next(error);

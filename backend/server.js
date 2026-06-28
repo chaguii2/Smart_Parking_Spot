@@ -52,19 +52,30 @@ app.use('/api/reservations', reservationRoutes);
 
 // ==================== MOCK EMAILS ====================
 const MockEmail = require('./src/models/MockEmail');
+const { protect } = require('./src/middleware/auth');
 
-app.get('/api/mock-emails', async (req, res) => {
+app.get('/api/mock-emails', protect, async (req, res) => {
   try {
-    const emails = await MockEmail.find().sort({ createdAt: -1 });
+    const query = {};
+    // Si l'utilisateur n'est pas un Super Admin, filtrer les notifications par son e-mail
+    if (req.user.role !== 'super_admin') {
+      query.to = req.user.email;
+    }
+    const emails = await MockEmail.find(query).sort({ createdAt: -1 });
     res.json({ emails });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/mock-emails', async (req, res) => {
+app.delete('/api/mock-emails', protect, async (req, res) => {
   try {
-    await MockEmail.deleteMany({});
+    const query = {};
+    // Si l'utilisateur n'est pas un Super Admin, ne vider que ses propres notifications
+    if (req.user.role !== 'super_admin') {
+      query.to = req.user.email;
+    }
+    await MockEmail.deleteMany(query);
     res.json({ message: 'Boîte de réception virtuelle vidée.' });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -26,6 +26,11 @@
           <i class="fa-solid fa-right-to-bracket"></i>
           <span>{{ isLoading ? 'Connexion...' : 'Se connecter' }}</span>
         </button>
+        <div style="text-align: center; margin: 1rem 0; color: var(--text-secondary); font-size: 0.8rem; font-weight: 500;">OU</div>
+        <button type="button" class="btn btn-secondary" style="background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.25); color: #818cf8; margin-bottom: 1.5rem;" (click)="startFaceLogin()">
+          <i class="fa-solid fa-face-smile"></i>
+          <span>Connexion par Visage</span>
+        </button>
         <div class="auth-footer-links">
           <a (click)="switchTab('forgot')">Mot de passe oublié ?</a>
         </div>
@@ -153,5 +158,39 @@
   <div class="toast" [ngClass]="'toast-' + toastType">
     <i class="fa-solid" [ngClass]="toastType === 'success' ? 'fa-circle-check' : 'fa-circle-xmark'"></i>
     <span>{{ toastMessage }}</span>
+  </div>
+</div>
+
+<!-- Face Auth Modal -->
+<div class="modal-overlay" *ngIf="showFaceModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 10, 15, 0.85); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+  <div class="glass-card" style="width: 90%; max-width: 420px; padding: 2.2rem; text-align: center; border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg); background: rgba(18, 18, 30, 0.95);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h3 style="margin: 0; font-size: 1.3rem; font-weight: 600; color: #fff;">
+        <i class="fa-solid fa-face-smile text-gradient-primary" style="margin-right: 0.5rem;"></i>
+        Reconnaissance Faciale
+      </h3>
+      <button (click)="closeFaceModal()" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- Camera preview circle -->
+    <div style="position: relative; width: 260px; height: 260px; margin: 0 auto 2rem; border-radius: 50%; overflow: hidden; border: 3px solid rgba(99, 102, 241, 0.4); background: #000; box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);">
+      <video id="faceLoginVideo" width="340" height="260" autoplay muted playsinline style="transform: scaleX(-1); object-fit: cover; width: 100%; height: 100%;"></video>
+      
+      <!-- Laser scan visual effect -->
+      <div *ngIf="!faceError" style="position: absolute; width: 100%; height: 2px; background: #6366f1; top: 50%; left: 0; animation: scanAnim 3s infinite ease-in-out; box-shadow: 0 0 10px #6366f1;"></div>
+    </div>
+
+    <div style="min-height: 48px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+      <p *ngIf="!faceError" style="color: var(--text-secondary); font-size: 0.95rem; margin: 0;">
+        <i class="fa-solid fa-spinner fa-spin" style="margin-right: 0.5rem; color: #6366f1;"></i>
+        {{ faceDetectionMessage }}
+      </p>
+      <p *ngIf="faceError" style="color: #fca5a5; font-size: 0.95rem; margin: 0;">
+        <i class="fa-solid fa-circle-exclamation" style="margin-right: 0.5rem; color: var(--danger);"></i>
+        {{ faceError }}
+      </p>
+    </div>
+
+    <button type="button" class="btn btn-secondary" style="width: 100%;" (click)="closeFaceModal()">Annuler</button>
   </div>
 </div>

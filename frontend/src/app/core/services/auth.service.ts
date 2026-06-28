@@ -56,7 +56,7 @@ export class AuthService {
     return this.http.post<any>(`${this.apiUrl}/reset-password`, payload);
   }
 
-  private setSession(token: string, user: any): void {
+  public setSession(token: string, user: any): void {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     this.currentUserSubject.next(user);

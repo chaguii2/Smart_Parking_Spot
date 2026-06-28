@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: [true, 'Le téléphone est requis'],
-    match: [/^[0-9]{10}$/, 'Téléphone invalide (10 chiffres)']
+    match: [/^[0-9]{8,15}$/, 'Téléphone invalide (8 à 15 chiffres)']
   },
   role: {
     type: String,
@@ -178,6 +178,11 @@ const userSchema = new mongoose.Schema({
   isOnDuty: {
     type: Boolean,
     default: false
+  },
+  faceDescriptor: {
+    type: [Number],
+    default: null,
+    select: false  // not returned by default for security
   },
   resetPasswordToken: {
     type: String,

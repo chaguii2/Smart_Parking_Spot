@@ -122,3 +122,9 @@
     opacity: 1;
   }
 }
+
+@keyframes scanAnim {
+  0% { transform: translateY(-100px); }
+  50% { transform: translateY(100px); }
+  100% { transform: translateY(-100px); }
+}

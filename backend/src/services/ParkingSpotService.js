@@ -2,6 +2,7 @@
 const ParkingSpot = require('../models/ParkingSpot');
 const Parking = require('../models/Parking');
 const UserRoles = require('../models/UserRoles');
+const activityLogService = require('./ActivityLogService');
 const { ForbiddenError, NotFoundError, UnauthorizedError, BadRequestError } = require('../utils/errors');
 
 class ParkingSpotService {
@@ -46,7 +47,8 @@ class ParkingSpotService {
 
   // Récupérer toutes les places d'un parking
   async getSpotsByParking(parkingId, filters = {}) {
-    let query = { parkingId, status: 'ACTIVE' };
+    // Include ALL spots (ACTIVE, MAINTENANCE, BLOCKED) so the employee can see every spot's real status
+    let query = { parkingId };
     
     if (filters.zone) query.zone = filters.zone;
     if (filters.type) query.type = filters.type;
@@ -351,6 +353,22 @@ class ParkingSpotService {
     }
     
     await spot.save();
+
+    // Log the action if changed by employee/agent
+    if (currentUser && currentUser.role === UserRoles.EMPLOYEE) {
+      let stateDesc = 'actif';
+      if (spot.status === 'MAINTENANCE') stateDesc = 'hors service (maintenance)';
+      else if (spot.status === 'BLOCKED') stateDesc = 'bloqué';
+      else if (spot.isReserved) stateDesc = 'réservé';
+      else if (!spot.isAvailable) stateDesc = 'occupé';
+
+      await activityLogService.log(
+        currentUser.id,
+        spot.parkingId,
+        'SPOT_STATUS_CHANGE',
+        `Changement de statut de la place ${spot.spotNumber} à "${stateDesc}"`
+      );
+    }
 
     // Mettre à jour availableSpots
     const count = await ParkingSpot.countDocuments({ parkingId: spot.parkingId, isAvailable: true, status: 'ACTIVE' });

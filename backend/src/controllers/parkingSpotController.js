@@ -80,6 +80,19 @@ const updateSpotStatus = async (req, res, next) => {
   try {
     const { spotId } = req.params;
     const result = await parkingSpotService.updateSpotStatus(spotId, req.body, req.user);
+
+    // Émettre une mise à jour en temps réel via WebSocket
+    const io = req.app.get('io');
+    if (io && result.data && result.data.parkingId) {
+      const parkingId = result.data.parkingId.toString();
+      io.to(`parking-${parkingId}`).emit('spots-update', {
+        type: 'MANUAL_UPDATE',
+        parkingId,
+        changedSpots: [result.data],
+        timestamp: new Date()
+      });
+    }
+
     res.status(200).json(result);
   } catch (error) {
     next(error);

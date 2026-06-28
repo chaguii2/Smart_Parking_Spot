@@ -111,12 +111,12 @@
     <!-- Live spot grid -->
     <div class="spots-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 1rem;" *ngIf="spots.length > 0">
       <div *ngFor="let spot of spots" 
-           [class]="'spot-item spot-' + spot.status"
+           [class]="'spot-item spot-' + getSpotDisplayStatus(spot)"
            [class.selected]="selectedSpot && selectedSpot._id === spot._id"
            (click)="selectSpot(spot)"
            style="border: 1px solid var(--glass-border); border-radius: var(--border-radius-sm); padding: 1.25rem 0.75rem; text-align: center; cursor: pointer; transition: var(--transition-smooth); background: rgba(255,255,255,0.02);">
         <i class="fa-solid" 
-           [ngClass]="spot.status === 'available' ? 'fa-circle-check' : (spot.status === 'occupied' ? 'fa-car' : (spot.status === 'reserved' ? 'fa-bookmark' : 'fa-triangle-exclamation'))"
+           [ngClass]="getSpotDisplayStatus(spot) === 'available' ? 'fa-circle-check' : (getSpotDisplayStatus(spot) === 'occupied' ? 'fa-car' : (getSpotDisplayStatus(spot) === 'reserved' ? 'fa-bookmark' : 'fa-triangle-exclamation'))"
            style="font-size: 1.25rem; margin-bottom: 0.5rem; display: block;"></i>
         <strong style="font-size: 1.05rem; display: block;">{{ spot.spotNumber }}</strong>
         <span style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase;">{{ spot.type }}</span>

@@ -9,7 +9,7 @@ router.use(protect);
 router.get('/me', userController.getMe);
 router.put('/me', [
   body('name').optional().trim().notEmpty().withMessage('Le nom ne peut pas être vide.'),
-  body('phone').optional().matches(/^[0-9]{10}$/).withMessage('Téléphone invalide.')
+  body('phone').optional().matches(/^[0-9]{8,15}$/).withMessage('Téléphone invalide (8 à 15 chiffres).')
 ], userController.updateMe);
 router.delete('/me', userController.deleteMe);
 
@@ -17,11 +17,14 @@ router.post('/employees', authorize('company', 'super_admin'), [
   body('name').trim().notEmpty().withMessage('Le nom est requis.'),
   body('email').isEmail().withMessage('Email invalide.'),
   body('password').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères.'),
-  body('phone').matches(/^[0-9]{10}$/).withMessage('Téléphone invalide.'),
+  body('phone').matches(/^[0-9]{8,15}$/).withMessage('Téléphone invalide (8 à 15 chiffres).'),
   body('position').optional().isIn(['agent', 'supervisor', 'manager']).withMessage('Position invalide.'),
 ], userController.createEmployee);
 
 router.get('/employees', authorize('company', 'super_admin'), userController.getCompanyEmployees);
+router.get('/employees/:id/logs', authorize('company', 'super_admin'), userController.getEmployeeLogs);
+router.post('/employees/:id/face', authorize('company', 'super_admin'), userController.enrollFace);
+router.delete('/employees/:id/face', authorize('company', 'super_admin'), userController.deleteFace);
 router.get('/company/parkings', authorize('company'), userController.getCompanyParkings);
 
 router.post('/parking-request', authorize('company'), [
@@ -40,7 +43,7 @@ router.get('/:id', authorize('super_admin', 'company'), [
 router.put('/:id', authorize('super_admin', 'company'), [
   param('id').isMongoId().withMessage('Identifiant invalide.'),
   body('name').optional().trim().notEmpty().withMessage('Le nom ne peut pas être vide.'),
-  body('phone').optional().matches(/^[0-9]{10}$/).withMessage('Téléphone invalide.')
+  body('phone').optional().matches(/^[0-9]{8,15}$/).withMessage('Téléphone invalide (8 à 15 chiffres).')
 ], userController.updateUser);
 router.delete('/:id', authorize('super_admin', 'company'), [
   param('id').isMongoId().withMessage('Identifiant invalide.')

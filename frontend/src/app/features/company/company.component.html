@@ -300,17 +300,20 @@
   <!-- Employees Tab -->
   <div *ngIf="activeSection === 'employees'" style="margin-top: 1.5rem;">
     <div class="glass-card" style="max-width: 600px; margin-bottom: 2rem;">
-      <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-user-plus" style="color: var(--accent); margin-right: 0.5rem;"></i> Créer un Employé</h3>
-      <form (submit)="onCreateEmployee($event)">
+      <h3 style="margin-bottom: 1.5rem;">
+        <i class="fa-solid" [ngClass]="isEditingEmp ? 'fa-user-pen' : 'fa-user-plus'" [style.color]="isEditingEmp ? 'var(--primary)' : 'var(--accent)'" style="margin-right: 0.5rem;"></i> 
+        {{ isEditingEmp ? 'Modifier l\'Employé' : 'Créer un Employé' }}
+      </h3>
+      <form (submit)="isEditingEmp ? onUpdateEmployee($event) : onCreateEmployee($event)">
         <div class="form-group">
           <label>Nom complet</label>
           <input type="text" class="form-control" [(ngModel)]="empName" name="empName" placeholder="Marc Lemaire" required>
         </div>
         <div class="form-group">
           <label>Email</label>
-          <input type="email" class="form-control" [(ngModel)]="empEmail" name="empEmail" placeholder="marc@entreprise.com" required>
+          <input type="email" class="form-control" [(ngModel)]="empEmail" name="empEmail" placeholder="marc@entreprise.com" [required]="!isEditingEmp" [disabled]="isEditingEmp">
         </div>
-        <div class="form-group">
+        <div class="form-group" *ngIf="!isEditingEmp">
           <label>Mot de passe</label>
           <input type="password" class="form-control" [(ngModel)]="empPassword" name="empPassword" placeholder="••••••••" required>
         </div>
@@ -333,10 +336,25 @@
             <option value="manager">Manager</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-primary" [disabled]="isLoading || getApprovedParkings().length === 0">
-          <i class="fa-solid fa-user-plus"></i>
-          <span>{{ isLoading ? 'Création...' : 'Créer l\'employé' }}</span>
-        </button>
+        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+          <div style="flex: 1;">
+            <label style="font-size: 0.85rem; color: var(--text-secondary);">Début de shift</label>
+            <input type="time" class="form-control" [(ngModel)]="empShiftStart" name="empShiftStart" required>
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 0.85rem; color: var(--text-secondary);">Fin de shift</label>
+            <input type="time" class="form-control" [(ngModel)]="empShiftEnd" name="empShiftEnd" required>
+          </div>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+          <button type="submit" class="btn btn-primary" [disabled]="isLoading || getApprovedParkings().length === 0">
+            <i class="fa-solid" [ngClass]="isEditingEmp ? 'fa-floppy-disk' : 'fa-user-plus'"></i>
+            <span>{{ isLoading ? (isEditingEmp ? 'Enregistrement...' : 'Création...') : (isEditingEmp ? 'Enregistrer les modifications' : 'Créer l\'employé') }}</span>
+          </button>
+          <button type="button" class="btn btn-secondary" style="background: transparent; border: 1px solid var(--glass-border); width: auto;" (click)="cancelEditEmployee()" *ngIf="isEditingEmp" [disabled]="isLoading">
+            Annuler
+          </button>
+        </div>
       </form>
     </div>
 
@@ -344,14 +362,41 @@
       <div class="custom-table-container">
         <table class="custom-table">
           <thead>
-            <tr><th>Nom</th><th>Email</th><th>Position</th><th>N° Employé</th></tr>
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Téléphone</th>
+              <th>Position</th>
+              <th>Shift</th>
+              <th>N° Employé</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
           </thead>
           <tbody>
             <tr *ngFor="let e of employees">
               <td>{{ e.name }}</td>
               <td>{{ e.email }}</td>
+              <td>{{ e.phone }}</td>
               <td>{{ e.position }}</td>
+              <td style="font-family: monospace; font-size: 0.9rem;">{{ e.shiftStart }} - {{ e.shiftEnd }}</td>
               <td>{{ e.employeeNumber }}</td>
+              <td style="text-align: right; white-space: nowrap;">
+                <button class="btn btn-secondary" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem; background: var(--secondary);" (click)="viewEmployeeLogs(e)">
+                  <i class="fa-solid fa-clock-rotate-left"></i> Logs
+                </button>
+                <button *ngIf="e.hasFace" class="btn btn-danger" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem; background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3);" (click)="deleteFaceEnroll(e)">
+                  <i class="fa-solid fa-user-minus"></i> Visage
+                </button>
+                <button *ngIf="!e.hasFace" class="btn btn-secondary" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);" (click)="startFaceEnroll(e)">
+                  <i class="fa-solid fa-user-plus"></i> Visage
+                </button>
+                <button class="btn btn-secondary" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem;" (click)="startEditEmployee(e)">
+                  <i class="fa-solid fa-pen"></i> Modifier
+                </button>
+                <button class="btn btn-danger" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; background: var(--danger);" (click)="onDeleteEmployee(e._id)">
+                  <i class="fa-solid fa-trash"></i> Supprimer
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -403,5 +448,100 @@
   <div class="toast" [ngClass]="'toast-' + toastType">
     <i class="fa-solid" [ngClass]="toastType === 'success' ? 'fa-circle-check' : 'fa-circle-xmark'"></i>
     <span>{{ toastMessage }}</span>
+  </div>
+</div>
+
+<!-- Logs Modal -->
+<div class="modal-overlay" *ngIf="showLogsModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+  <div class="glass-card" style="width: 90%; max-width: 700px; max-height: 85vh; display: flex; flex-direction: column; padding: 2rem; background: rgba(18, 18, 30, 0.95); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
+      <h3 style="margin: 0; color: var(--text-primary);"><i class="fa-solid fa-clock-rotate-left" style="color: var(--secondary); margin-right: 0.5rem;"></i> Activité de {{ selectedEmployeeForLogs?.name }}</h3>
+      <button (click)="closeLogsModal()" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    
+    <div style="overflow-y: auto; flex: 1; margin-bottom: 1.5rem;" class="custom-table-container">
+      <table class="custom-table" *ngIf="employeeLogs.length > 0">
+        <thead>
+          <tr>
+            <th>Date / Heure</th>
+            <th>Type d'action</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let log of employeeLogs">
+            <td style="white-space: nowrap; font-size: 0.85rem;">{{ log.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+            <td>
+              <span class="badge" [ngClass]="{
+                'badge-approved': log.actionType === 'CHECK_IN' || log.actionType === 'CHECK_OUT',
+                'badge-pending': log.actionType === 'LOGIN',
+                'badge-suspended': log.actionType === 'SPOT_STATUS_CHANGE'
+              }">{{ log.actionType }}</span>
+            </td>
+            <td style="font-size: 0.9rem;">{{ log.details }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div *ngIf="employeeLogs.length === 0 && !isLoading" style="text-align: center; padding: 3rem 0; color: var(--text-secondary); font-style: italic;">
+        Aucune activité enregistrée pour cet employé.
+      </div>
+      <div *ngIf="isLoading" style="text-align: center; padding: 3rem 0; color: var(--text-secondary);">
+        Chargement...
+      </div>
+    </div>
+    
+    <div style="text-align: right;">
+      <button class="btn btn-secondary" style="width: auto; padding: 0.5rem 1.5rem;" (click)="closeLogsModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Face Enrollment Modal -->
+<div class="modal-overlay" *ngIf="showFaceEnrollModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 10, 15, 0.85); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+  <div class="glass-card" style="width: 90%; max-width: 420px; padding: 2.2rem; text-align: center; border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg); background: rgba(18, 18, 30, 0.95);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h3 style="margin: 0; font-size: 1.3rem; font-weight: 600; color: #fff;">
+        <i class="fa-solid fa-camera text-gradient-primary" style="margin-right: 0.5rem;"></i>
+        Enregistrer le visage
+      </h3>
+      <button (click)="closeFaceEnrollModal()" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.5rem;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
+      Enregistrement facial pour <strong>{{ enrollingEmployee?.name }}</strong>
+    </p>
+
+    <!-- Camera preview circle -->
+    <div style="position: relative; width: 260px; height: 260px; margin: 0 auto 2rem; border-radius: 50%; overflow: hidden; border: 3px solid rgba(16, 185, 129, 0.4); background: #000; box-shadow: 0 0 30px rgba(16, 185, 129, 0.2);">
+      <video id="faceEnrollVideo" width="340" height="260" autoplay muted playsinline style="transform: scaleX(-1); object-fit: cover; width: 100%; height: 100%;"></video>
+      
+      <!-- Frame guide -->
+      <div *ngIf="!faceEnrollError && !capturedDescriptor" style="position: absolute; top: 10%; left: 10%; width: 80%; height: 80%; border: 2px dashed rgba(16, 185, 129, 0.6); border-radius: 50%; pointer-events: none;"></div>
+    </div>
+
+    <!-- Status message -->
+    <div style="min-height: 48px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+      <p *ngIf="!faceEnrollError" [style.color]="capturedDescriptor ? '#34d399' : 'var(--text-secondary)'" style="font-size: 0.95rem; margin: 0; font-weight: 500;">
+        <i *ngIf="!capturedDescriptor" class="fa-solid fa-spinner fa-spin" style="margin-right: 0.5rem; color: #10b981;"></i>
+        <i *ngIf="capturedDescriptor" class="fa-solid fa-circle-check" style="margin-right: 0.5rem; color: #34d399;"></i>
+        {{ faceEnrollMessage }}
+      </p>
+      <p *ngIf="faceEnrollError" style="color: #fca5a5; font-size: 0.95rem; margin: 0;">
+        <i class="fa-solid fa-circle-exclamation" style="margin-right: 0.5rem; color: var(--danger);"></i>
+        {{ faceEnrollError }}
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 1rem;">
+      <button type="button" class="btn btn-secondary" style="flex: 1;" (click)="closeFaceEnrollModal()" [disabled]="isLoading">Annuler</button>
+      
+      <button *ngIf="!capturedDescriptor" type="button" class="btn btn-primary" style="flex: 1; background: #10b981;" (click)="captureFace()" [disabled]="faceEnrollError || isLoading">
+        <i class="fa-solid fa-camera"></i> Capturer
+      </button>
+      
+      <button *ngIf="capturedDescriptor" type="button" class="btn btn-primary" style="flex: 1; background: #6366f1;" (click)="saveFaceEnroll()" [disabled]="isLoading">
+        <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+      </button>
+    </div>
   </div>
 </div>

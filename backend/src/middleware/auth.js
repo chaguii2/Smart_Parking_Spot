@@ -18,6 +18,33 @@ exports.protect = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: 'Token invalide.' });
     }
+    
+    // Shift enforcement for employees
+    if (user.role === 'employee') {
+      const isProfileRoute = req.method === 'GET' && (req.path === '/me' || req.originalUrl?.endsWith('/users/me'));
+      if (!isProfileRoute) {
+        const now = new Date();
+        const currentStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const start = user.shiftStart || '08:00';
+        const end = user.shiftEnd || '17:00';
+        
+        let insideShift = false;
+        if (start <= end) {
+          insideShift = currentStr >= start && currentStr <= end;
+        } else {
+          insideShift = currentStr >= start || currentStr <= end;
+        }
+        
+        if (!insideShift) {
+          return res.status(403).json({
+            success: false,
+            message: `Accès refusé en dehors des heures de service (${start} - ${end}).`,
+            isOutOfShift: true
+          });
+        }
+      }
+    }
+    
     req.user = user;
     next();
   } catch (error) {

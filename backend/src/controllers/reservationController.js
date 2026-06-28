@@ -135,9 +135,9 @@ exports.getParkingReservations = async (req, res, next) => {
 exports.checkIn = async (req, res, next) => {
   try {
     const { qrCode } = req.body;
-    const result = await reservationService.checkIn(req.params.id, req.user, qrCode || null);
-
     const io = req.app.get('io');
+    const result = await reservationService.checkIn(req.params.id, req.user, qrCode || null, io);
+
     if (io && result.data) {
       io.to(`parking-${result.data.parkingId}`).emit('reservation-updated', {
         type: 'CLIENT_CHECKED_IN',
@@ -156,9 +156,9 @@ exports.checkIn = async (req, res, next) => {
 // PUT /api/reservations/:id/checkout
 exports.checkOut = async (req, res, next) => {
   try {
-    const result = await reservationService.checkOut(req.params.id, req.user);
-
     const io = req.app.get('io');
+    const result = await reservationService.checkOut(req.params.id, req.user, io);
+
     if (io && result.data) {
       const parkingId = result.data.parkingId;
       io.to(`parking-${parkingId}`).emit('reservation-updated', {
@@ -183,7 +183,8 @@ exports.checkOut = async (req, res, next) => {
 // PUT /api/reservations/:id/no-show
 exports.markNoShow = async (req, res, next) => {
   try {
-    const result = await reservationService.markNoShow(req.params.id, req.user);
+    const io = req.app.get('io');
+    const result = await reservationService.markNoShow(req.params.id, req.user, io);
     res.status(200).json(result);
   } catch (error) {
     next(error);

@@ -54,4 +54,8 @@ export class UserService {
   public deleteUser(id: string): Observable<any> {
     return this.http.delete<any>(`${this.apiUrl}/${id}`);
   }
+
+  public getEmployeeLogs(id: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/employees/${id}/logs`);
+  }
 }

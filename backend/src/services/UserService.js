@@ -205,9 +205,16 @@ class UserService {
     const employees = await User.find({
       role: UserRoles.EMPLOYEE,
       companyId: ownerCompanyId
-    }).select('-password -resetPasswordToken -resetPasswordExpires');
+    }).select('+faceDescriptor -password -resetPasswordToken -resetPasswordExpires');
     
-    return employees;
+    const mapped = employees.map(emp => {
+      const obj = emp.toObject();
+      obj.hasFace = !!emp.faceDescriptor && emp.faceDescriptor.length > 0;
+      delete obj.faceDescriptor;
+      return obj;
+    });
+    
+    return mapped;
   }
 
   async submitParkingRequest(parkingData, currentUser) {

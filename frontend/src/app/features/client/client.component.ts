@@ -209,15 +209,15 @@ export class ClientComponent implements OnInit {
       return;
     }
 
-    const payload = {
+    const payload: any = {
       parkingId: this.selectedParkingForBooking._id || this.selectedParkingForBooking.id,
-      spotId: this.bookingSpotId,
       vehiclePlate: this.bookingVehiclePlate,
       vehicleType: this.bookingVehicleType,
       startTime: new Date(this.bookingStartTime).toISOString(),
       endTime: new Date(this.bookingEndTime).toISOString(),
       paymentMethod: this.bookingPaymentMethod,
-      notes: this.bookingNotes
+      notes: this.bookingNotes,
+      ...(this.bookingSpotId ? { spotId: this.bookingSpotId } : {})
     };
 
     this.isLoading = true;

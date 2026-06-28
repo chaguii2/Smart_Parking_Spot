@@ -152,7 +152,7 @@ const reservationSchema = new mongoose.Schema({
   },
   cancelledBy: {
     type: String,
-    enum: ['client', 'company', 'admin', 'system'],
+    enum: { values: ['client', 'company', 'admin', 'system', null] },
     default: null
   },
   notes: {

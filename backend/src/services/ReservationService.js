@@ -4,6 +4,7 @@ const ParkingSpot = require('../models/ParkingSpot');
 const Parking = require('../models/Parking');
 const User = require('../models/User');
 const UserRoles = require('../models/UserRoles');
+const activityLogService = require('./ActivityLogService');
 const { BadRequestError, NotFoundError, ForbiddenError, UnauthorizedError } = require('../utils/errors');
 
 // Délai avant auto-expiration d'une réservation "pending" (en minutes)
@@ -122,19 +123,25 @@ class ReservationService {
       }
     }
 
-    // ── Déterminer la place ────────────────────────────────────────────────────
+    // ── Déterminer et verrouiller atomiquement la place ──────────────────────────
     let spot;
     if (spotId) {
-      spot = await ParkingSpot.findById(spotId);
-      if (!spot) throw new NotFoundError('Place de parking non trouvée.');
-      if (spot.parkingId.toString() !== parkingId.toString()) {
-        throw new BadRequestError('Cette place n\'appartient pas à ce parking.');
-      }
-      if (!spot.isAvailable || spot.isReserved || spot.status !== 'ACTIVE') {
-        throw new BadRequestError('Cette place n\'est pas disponible.');
+      // Verrouillage atomique : marquer isReserved=true uniquement si encore disponible
+      spot = await ParkingSpot.findOneAndUpdate(
+        { _id: spotId, parkingId, isAvailable: true, isReserved: false, status: 'ACTIVE' },
+        { $set: { isReserved: true } },
+        { new: true }
+      );
+      if (!spot) {
+        // Vérifier si la place existe mais est indisponible
+        const exists = await ParkingSpot.findById(spotId);
+        if (!exists) throw new NotFoundError('Place de parking non trouvée.');
+        if (exists.parkingId.toString() !== parkingId.toString())
+          throw new BadRequestError('Cette place n\'appartient pas à ce parking.');
+        throw new BadRequestError('Cette place n\'est plus disponible (déjà réservée par un autre client).');
       }
     } else {
-      // Attribution automatique selon le type de véhicule
+      // Attribution automatique selon le type de véhicule — verrouillage atomique
       const spotTypeMap = {
         motorcycle: 'MOTORCYCLE',
         electric: 'ELECTRIC',
@@ -143,23 +150,19 @@ class ReservationService {
       };
       const preferredType = spotTypeMap[vehicleType] || 'STANDARD';
 
-      // Essayer le type préféré, sinon STANDARD
-      spot = await ParkingSpot.findOne({
-        parkingId,
-        type: preferredType,
-        isAvailable: true,
-        isReserved: false,
-        status: 'ACTIVE'
-      }).sort({ zone: 1, row: 1, column: 1 });
+      // Essayer le type préféré, sinon STANDARD — atomique pour éviter la race condition
+      spot = await ParkingSpot.findOneAndUpdate(
+        { parkingId, type: preferredType, isAvailable: true, isReserved: false, status: 'ACTIVE' },
+        { $set: { isReserved: true } },
+        { new: true, sort: { zone: 1, row: 1, column: 1 } }
+      );
 
       if (!spot && preferredType !== 'STANDARD') {
-        spot = await ParkingSpot.findOne({
-          parkingId,
-          type: 'STANDARD',
-          isAvailable: true,
-          isReserved: false,
-          status: 'ACTIVE'
-        }).sort({ zone: 1, row: 1, column: 1 });
+        spot = await ParkingSpot.findOneAndUpdate(
+          { parkingId, type: 'STANDARD', isAvailable: true, isReserved: false, status: 'ACTIVE' },
+          { $set: { isReserved: true } },
+          { new: true, sort: { zone: 1, row: 1, column: 1 } }
+        );
       }
 
       if (!spot) {
@@ -213,8 +216,8 @@ class ReservationService {
 
     await reservation.save();
 
-    // ── Marquer la place comme réservée ────────────────────────────────────────
-    spot.isReserved = true;
+    // ── Finaliser le marquage de la place (isReserved déjà posé atomiquement) ──
+    // isReserved=true a été posé atomiquement lors de la sélection de la place
     spot.isAvailable = false;
     spot.currentReservation = {
       bookingId: reservation._id.toString(),
@@ -394,7 +397,7 @@ class ReservationService {
 
   // ─── 6. Check-in (arrivée du client) ──────────────────────────────────────────
 
-  async checkIn(reservationId, currentUser, qrCode = null) {
+  async checkIn(reservationId, currentUser, qrCode = null, io = null) {
     this._requireRoles(currentUser, UserRoles.EMPLOYEE, UserRoles.COMPANY, UserRoles.SUPER_ADMIN);
 
     // Recherche par ID ou par QR code
@@ -427,6 +430,35 @@ class ReservationService {
     reservation.checkedInAt = now;
     await reservation.save();
 
+    // Enregistrer le log d'activité
+    await activityLogService.log(
+      currentUser.id,
+      reservation.parkingId,
+      'CHECK_IN',
+      `Véhicule enregistré (Plaque: ${reservation.vehiclePlate}, Place: ${reservation.spotNumber})`
+    );
+
+    // ── Mettre à jour la place : client physiquement présent → occupée ─────────
+    const spot = await ParkingSpot.findById(reservation.spotId);
+    if (spot) {
+      spot.isReserved = false;   // n'est plus en attente, il est là
+      spot.isAvailable = false;  // mais pas disponible car occupé
+      await spot.save();
+
+      // Émettre la mise à jour en temps réel
+      if (io) {
+        io.to(`parking-${reservation.parkingId.toString()}`).emit('spots-update', {
+          type: 'CHECKIN',
+          parkingId: reservation.parkingId.toString(),
+          changedSpots: [spot],
+          reservationId: reservation._id,
+          timestamp: new Date()
+        });
+      }
+    }
+
+    await this._syncAvailableSpots(reservation.parkingId);
+
     return {
       success: true,
       message: `Check-in effectué. Bienvenue, ${reservation.clientName} ! Place : ${reservation.spotNumber}.`,
@@ -436,7 +468,7 @@ class ReservationService {
 
   // ─── 7. Check-out (départ du client) ──────────────────────────────────────────
 
-  async checkOut(reservationId, currentUser) {
+  async checkOut(reservationId, currentUser, io = null) {
     this._requireRoles(currentUser, UserRoles.EMPLOYEE, UserRoles.COMPANY, UserRoles.SUPER_ADMIN);
 
     const reservation = await Reservation.findById(reservationId);
@@ -469,9 +501,27 @@ class ReservationService {
     }
     await reservation.save();
 
-    // Libérer la place
-    await this._freeSpot(reservation);
+    // Enregistrer le log d'activité
+    await activityLogService.log(
+      currentUser.id,
+      reservation.parkingId,
+      'CHECK_OUT',
+      `Départ véhicule (Plaque: ${reservation.vehiclePlate}, Place: ${reservation.spotNumber}, Montant: ${reservation.totalPrice} DT)`
+    );
+
+    // Libérer la place et émettre en temps réel
+    const freedSpot = await this._freeSpot(reservation);
     await this._syncAvailableSpots(reservation.parkingId);
+
+    if (io && freedSpot) {
+      io.to(`parking-${reservation.parkingId.toString()}`).emit('spots-update', {
+        type: 'CHECKOUT',
+        parkingId: reservation.parkingId.toString(),
+        changedSpots: [freedSpot],
+        reservationId: reservation._id,
+        timestamp: new Date()
+      });
+    }
 
     // Mettre à jour les dépenses du client
     await User.findByIdAndUpdate(reservation.clientId, {
@@ -487,7 +537,7 @@ class ReservationService {
 
   // ─── 8. Marquer "no_show" ──────────────────────────────────────────────────────
 
-  async markNoShow(reservationId, currentUser) {
+  async markNoShow(reservationId, currentUser, io = null) {
     this._requireRoles(currentUser, UserRoles.EMPLOYEE, UserRoles.COMPANY, UserRoles.SUPER_ADMIN);
 
     const reservation = await Reservation.findById(reservationId);
@@ -505,8 +555,26 @@ class ReservationService {
     reservation.cancelledAt = new Date();
     await reservation.save();
 
-    await this._freeSpot(reservation);
+    // Enregistrer le log d'activité
+    await activityLogService.log(
+      currentUser.id,
+      reservation.parkingId,
+      'SPOT_STATUS_CHANGE',
+      `Réservation marquée No-Show (Place: ${reservation.spotNumber}, Client: ${reservation.clientName})`
+    );
+
+    const freedSpot = await this._freeSpot(reservation);
     await this._syncAvailableSpots(reservation.parkingId);
+
+    if (io && freedSpot) {
+      io.to(`parking-${reservation.parkingId.toString()}`).emit('spots-update', {
+        type: 'SPOT_FREED',
+        spotId: reservation.spotId,
+        parkingId: reservation.parkingId.toString(),
+        changedSpots: [freedSpot],
+        timestamp: new Date()
+      });
+    }
 
     return {
       success: true,
@@ -730,10 +798,10 @@ class ReservationService {
 
   // ─── Méthodes utilitaires internes ────────────────────────────────────────────
 
-  // Libérer une place après annulation/fin de réservation
+  // Libérer une place après annulation/fin de réservation — retourne le spot mis à jour
   async _freeSpot(reservation) {
     const spot = await ParkingSpot.findById(reservation.spotId);
-    if (!spot) return;
+    if (!spot) return null;
 
     // Archiver dans l'historique
     if (spot.currentReservation && spot.currentReservation.bookingId === reservation._id.toString()) {
@@ -764,6 +832,7 @@ class ReservationService {
     spot.isAvailable = true;
     spot.lastFreedAt = new Date();
     await spot.save();
+    return spot; // retourner pour WebSocket emit
   }
 
   // Auto-expiration des réservations "pending" dépassées

@@ -1,6 +1,7 @@
 // src/controllers/userController.js
 const { validationResult } = require('express-validator');
 const userService = require('../services/UserService');
+const activityLogService = require('../services/ActivityLogService');
 
 exports.getMe = async (req, res, next) => {
   try {
@@ -121,6 +122,63 @@ exports.getCompanyParkings = async (req, res, next) => {
   try {
     const parkings = await userService.getCompanyParkings(req.user);
     res.json({ parkings });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getEmployeeLogs = async (req, res, next) => {
+  try {
+    const logs = await activityLogService.getEmployeeLogs(req.params.id, req.user, req.query);
+    res.json(logs);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.enrollFace = async (req, res, next) => {
+  try {
+    const { descriptor } = req.body;
+    if (!descriptor || !Array.isArray(descriptor) || descriptor.length !== 128) {
+      return res.status(400).json({ success: false, message: 'Descripteur facial invalide.' });
+    }
+
+    const User = require('../models/User');
+    const employee = await User.findById(req.params.id);
+    if (!employee || employee.role !== 'employee') {
+      return res.status(404).json({ success: false, message: 'Employé non trouvé.' });
+    }
+
+    // Access check: Company can only update their own employee
+    if (req.user.role === 'company' && employee.companyId?.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Accès interdit.' });
+    }
+
+    employee.faceDescriptor = descriptor;
+    await employee.save();
+
+    res.json({ success: true, message: 'Visage enregistré avec succès.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteFace = async (req, res, next) => {
+  try {
+    const User = require('../models/User');
+    const employee = await User.findById(req.params.id);
+    if (!employee || employee.role !== 'employee') {
+      return res.status(404).json({ success: false, message: 'Employé non trouvé.' });
+    }
+
+    if (req.user.role === 'company' && employee.companyId?.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Accès interdit.' });
+    }
+
+    employee.faceDescriptor = null;
+    await employee.save();
+
+    res.json({ success: true, message: 'Visage supprimé avec succès.' });
   } catch (error) {
     next(error);
   }

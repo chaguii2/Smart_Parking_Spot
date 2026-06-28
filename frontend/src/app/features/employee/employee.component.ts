@@ -1,15 +1,17 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { UserService } from '../../core/services/user.service';
 import { ParkingService } from '../../core/services/parking.service';
 import { ReservationService } from '../../core/services/reservation.service';
 import { AuthService } from '../../core/services/auth.service';
+import { SocketService } from '../../core/services/socket.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-employee',
   templateUrl: './employee.component.html',
   styleUrls: ['./employee.component.css']
 })
-export class EmployeeComponent implements OnInit {
+export class EmployeeComponent implements OnInit, OnDestroy {
   activeSection: 'dashboard' | 'spots' | 'reservations' | 'scanner' | 'profile' = 'dashboard';
   
   // State variables
@@ -42,15 +44,36 @@ export class EmployeeComponent implements OnInit {
   toastMessage: string | null = null;
   toastType: 'success' | 'error' = 'success';
 
+  // Real-time polling and sockets
+  private refreshInterval: any = null;
+  private spotsSub: Subscription | null = null;
+  private reservationSub: Subscription | null = null;
+
   constructor(
     private userService: UserService,
     private parkingService: ParkingService,
     private reservationService: ReservationService,
-    public authService: AuthService
+    public authService: AuthService,
+    private socketService: SocketService
   ) {}
 
   ngOnInit(): void {
     this.loadInitialData();
+  }
+
+  ngOnDestroy(): void {
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+    }
+    if (this.spotsSub) {
+      this.spotsSub.unsubscribe();
+    }
+    if (this.reservationSub) {
+      this.reservationSub.unsubscribe();
+    }
+    if (this.profile && this.profile.parkingId) {
+      this.socketService.leaveParking(this.profile.parkingId);
+    }
   }
 
   showToast(msg: string, type: 'success' | 'error' = 'success'): void {
@@ -70,6 +93,13 @@ export class EmployeeComponent implements OnInit {
         if (this.profile.parkingId) {
           this.loadParkingAndSpots(this.profile.parkingId);
           this.loadReservations(this.profile.parkingId);
+
+          // Start real-time auto-refresh every 10 seconds
+          if (!this.refreshInterval) {
+            this.refreshInterval = setInterval(() => {
+              this.loadParkingAndSpots(this.profile.parkingId);
+            }, 10000);
+          }
         } else {
           this.isLoading = false;
         }
@@ -82,6 +112,41 @@ export class EmployeeComponent implements OnInit {
   }
 
   loadParkingAndSpots(parkingId: string): void {
+    // Join Socket.IO room for this parking
+    this.socketService.joinParking(parkingId);
+
+    // Setup Socket listeners if not already configured
+    if (!this.spotsSub) {
+      this.spotsSub = this.socketService.onSpotsUpdate().subscribe({
+        next: (data) => {
+          if (data && data.changedSpots) {
+            data.changedSpots.forEach((updatedSpot: any) => {
+              const idx = this.spots.findIndex(s => s._id === updatedSpot._id);
+              if (idx !== -1) {
+                this.spots[idx] = { ...this.spots[idx], ...updatedSpot };
+              }
+            });
+            this.calculateSpotStats();
+          }
+        }
+      });
+    }
+
+    if (!this.reservationSub) {
+      this.reservationSub = this.socketService.onReservationUpdated().subscribe({
+        next: (data) => {
+          this.loadReservations(parkingId);
+          // Let's reload parking spots as well to be fully updated
+          this.parkingService.getSpotsByParking(parkingId).subscribe({
+            next: (res) => {
+              this.spots = res.data || [];
+              this.calculateSpotStats();
+            }
+          });
+        }
+      });
+    }
+
     this.parkingService.getParkingLocationById(parkingId).subscribe({
       next: (res) => {
         this.parking = res.data;
@@ -111,17 +176,30 @@ export class EmployeeComponent implements OnInit {
 
   calculateSpotStats(): void {
     const total = this.spots.length;
-    const available = this.spots.filter(s => s.status === 'available').length;
-    const occupied = this.spots.filter(s => s.status === 'occupied').length;
-    const maintenance = this.spots.filter(s => s.status === 'maintenance').length;
-    const reserved = this.spots.filter(s => s.status === 'reserved').length;
-
+    // Backend uses isAvailable (bool) and isReserved (bool) flags, status = 'ACTIVE'|'MAINTENANCE'|'BLOCKED'
+    const available  = this.spots.filter(s => s.isAvailable && !s.isReserved && s.status === 'ACTIVE').length;
+    const occupied   = this.spots.filter(s => !s.isAvailable && !s.isReserved && s.status === 'ACTIVE').length;
+    const reserved   = this.spots.filter(s => s.isReserved).length;
+    const maintenance = this.spots.filter(s => s.status === 'MAINTENANCE' || s.status === 'BLOCKED').length;
     this.stats = { total, available, occupied, maintenance, reserved };
+  }
+
+  /** Derive a simple display status from backend boolean flags */
+  getSpotDisplayStatus(spot: any): string {
+    if (spot.status === 'MAINTENANCE' || spot.status === 'BLOCKED') return 'maintenance';
+    if (spot.isReserved) return 'reserved';
+    if (!spot.isAvailable) return 'occupied';
+    return 'available';
+  }
+
+  /** Derive display status for the edit dropdown pre-fill */
+  getSpotEditStatus(spot: any): string {
+    return this.getSpotDisplayStatus(spot);
   }
 
   selectSpot(spot: any): void {
     this.selectedSpot = spot;
-    this.selectedSpotNewStatus = spot.status;
+    this.selectedSpotNewStatus = this.getSpotDisplayStatus(spot);
   }
 
   onUpdateSpotStatus(): void {
